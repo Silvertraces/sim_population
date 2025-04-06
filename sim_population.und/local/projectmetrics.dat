@@ -1,0 +1,10 @@
+{
+    "fileMetrics": "file,Code Lines",
+    "funcTop10": "function,cyclomatic",
+    "languages": "C++",
+    "metricsVersion": 3,
+    "parsetime": 0,
+    "summaryMetric/CountAnalysisError": 0,
+    "summaryMetric/CountAnalysisWarning": 0,
+    "summaryMetrics": "Name,Value\n"
+}

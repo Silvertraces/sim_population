@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MF0 version="1.1" packageUris="http://schema.mathworks.com/mf0/evolutionsmfdatamodel/R2023b">
+  <evolutions.model.BaseFileInfo type="evolutions.model.BaseFileInfo" uuid="7cacdad1-0b75-47df-97d7-e16b9832b81a">
+    <FileName>.gitattributes</FileName>
+    <Author>Silvertrace</Author>
+    <Created>2025-03-25T22:59:42.805426</Created>
+    <Updated>2025-03-25T22:59:42.810289</Updated>
+    <Id>a6a6aee8-1beb-4b9d-a247-529474cfeeaf</Id>
+  </evolutions.model.BaseFileInfo>
+</MF0>
