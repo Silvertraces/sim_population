@@ -39,8 +39,12 @@ codegen/
 sim_population.und/
 EvolutionTrees/
 derived/
-resources/
 
-# vscode
+# project files
+resources/
+*.prj
+
+# vscode & trae
 .vscode/
-*.workspace
+*.txt
+*.code-workspace
