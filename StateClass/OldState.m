@@ -1,10 +1,11 @@
 classdef OldState < LifeState
     % 代表 'old' (老年) 状态
 
-    properties (Constant)
-        % 定义该状态的规范名称
-        StateName = "old";
-    end
+    % 移除 StateName 属性
+    % properties (Constant)
+    %     % 定义该状态的规范名称
+    %     StateName = "old";
+    % end
 
     methods
         function nextState = updateState(~, individual, current_year, death_probs, repro_range)
@@ -30,5 +31,11 @@ classdef OldState < LifeState
             % 如果个体没有死亡，保持在 old 状态
             nextState = OldState();
         end
+
+        function enumState = getEnumState(~)
+            % 返回对应的枚举成员
+            enumState = LifeCycleState.Old;
+        end
     end
 end
+

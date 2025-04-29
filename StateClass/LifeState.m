@@ -2,16 +2,18 @@
 classdef (Abstract) LifeState
     % 个体生命状态的抽象基类
 
-    properties (Abstract, Constant)
-        % StateName: 定义该状态的规范名称字符串
-        StateName string
-    end
+    % 移除 StateName 属性，状态名称由枚举类提供
+    % properties (Abstract, Constant)
+    %     % StateName: 定义该状态的规范名称字符串
+    %     StateName string
+    % end
 
-    properties (Constant)
-        % life_status_set: 所有可能的生命状态名称集合
-        % 将此集合定义在基类中，表示整个状态空间
-        life_status_set = ["prebirth", "premature", "mature", "old", "dead"];
-    end
+    % 移除 life_status_set 属性，状态集合由枚举类提供
+    % properties (Constant)
+    %     % life_status_set: 所有可能的生命状态名称集合
+    %     % 将此集合定义在基类中，表示整个状态空间
+    %     life_status_set = ["prebirth", "premature", "mature", "old", "dead"];
+    % end
 
     methods (Abstract)
         % updateState: 处理状态转换逻辑并返回下一个状态对象
@@ -24,9 +26,14 @@ classdef (Abstract) LifeState
         % 输出:
         %   nextState - 下一个状态对象
         nextState = updateState(obj, individual, current_year, death_probs, repro_range);
+
+        % getEnumState: 返回该状态对应的枚举成员
+        % 输出:
+        %   enumState - LifeCycleState 枚举成员
+        enumState = getEnumState(obj);
     end
 
-    % 移除 getStateName 方法，改用 StateName 属性
+    % 移除 getStateName 方法
     % methods
     %     % getStateName: 返回状态的名称 (类名)
     %     function name = getStateName(obj)

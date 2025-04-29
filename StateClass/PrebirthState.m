@@ -1,10 +1,11 @@
 classdef PrebirthState < LifeState
     % 代表 'prebirth' (出生前) 状态
 
-    properties (Constant)
-        % 定义该状态的规范名称
-        StateName = "prebirth";
-    end
+    % 移除 StateName 属性
+    % properties (Constant)
+    %     % 定义该状态的规范名称
+    %     StateName = "prebirth";
+    % end
 
     methods
         function nextState = updateState(~, individual, current_year, ~, ~)
@@ -19,5 +20,11 @@ classdef PrebirthState < LifeState
                 nextState = PrebirthState();
             end
         end
+
+        function enumState = getEnumState(~)
+            % 返回对应的枚举成员
+            enumState = EnumLifeCycleState.Prebirth;
+        end
     end
 end
+

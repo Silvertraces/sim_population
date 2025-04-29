@@ -1,10 +1,11 @@
 classdef PrematureState < LifeState
     % 代表 'premature' (未成熟) 状态
 
-    properties (Constant)
-        % 定义该状态的规范名称
-        StateName = "premature";
-    end
+    % 移除 StateName 属性
+    % properties (Constant)
+    %     % 定义该状态的规范名称
+    %     StateName = "premature";
+    % end
 
     methods
         function nextState = updateState(~, individual, current_year, ~, repro_range)
@@ -19,5 +20,11 @@ classdef PrematureState < LifeState
                 nextState = PrematureState();
             end
         end
+
+        function enumState = getEnumState(~)
+            % 返回对应的枚举成员
+            enumState = LifeCycleState.Premature;
+        end
     end
 end
+

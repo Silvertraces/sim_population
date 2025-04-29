@@ -1,10 +1,11 @@
 classdef MatureState < LifeState
     % 代表 'mature' (成熟) 状态
 
-    properties (Constant)
-        % 定义该状态的规范名称
-        StateName = "mature";
-    end
+    % 移除 StateName 属性
+    % properties (Constant)
+    %     % 定义该状态的规范名称
+    %     StateName = "mature";
+    % end
 
     methods
         function nextState = updateState(~, individual, current_year, death_probs, repro_range)
@@ -28,6 +29,11 @@ classdef MatureState < LifeState
 
             % 如果没有发生转换，保持在 mature 状态
             nextState = MatureState();
+        end
+
+        function enumState = getEnumState(~)
+            % 返回对应的枚举成员
+            enumState = LifeCycleState.Mature;
         end
     end
 end
