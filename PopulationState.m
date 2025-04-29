@@ -31,7 +31,7 @@ classdef PopulationState < handle
             
             % 排除未出生个体
             life_statuses = [individuals.life_status];
-            born_mask = life_statuses ~= categorical("prebirth");
+            born_mask = life_statuses > LifeCycleState.Prebirth;
             born_individuals = individuals(born_mask);
             
             % 如果没有已出生个体，则返回空属性
@@ -49,17 +49,11 @@ classdef PopulationState < handle
             obj.life_statuses = [born_individuals.life_status];
             
             % 提取父母ID和世代数
-            % 由于这些是二维数组，需要特殊处理
-            num_individuals = length(born_individuals);
-            obj.parent_all_ids = zeros(num_individuals, 2);
-            obj.parent_gen_ids = zeros(num_individuals, 2);
-            obj.parent_gens = zeros(num_individuals, 2);
-            
-            for i = 1:num_individuals
-                obj.parent_all_ids(i, :) = born_individuals(i).parent_all_ids;
-                obj.parent_gen_ids(i, :) = born_individuals(i).parent_gen_ids;
-                obj.parent_gens(i, :) = born_individuals(i).parent_gens;
-            end
+            % 由于这些是二维数组，需要特殊处理，暂时的计划是元胞数组+reshape+cell2mat
+            sz_idvdl = size(born_individuals);
+            obj.parent_all_ids = cell2mat(reshape({born_individuals.parent_all_ids}, sz_idvdl));
+            obj.parent_gen_ids = cell2mat(reshape({born_individuals.parent_gen_ids}, sz_idvdl));
+            obj.parent_gens = cell2mat(reshape({born_individuals.parent_gens}, sz_idvdl));
         end
     end
 end
