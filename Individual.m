@@ -18,7 +18,7 @@ classdef Individual < handle
     end
 
     properties (Access = private)
-        currentState LifeState % 当前状态对象
+        currentState LifeState = PrebirthState() % 当前状态对象
     end
     
     properties (Constant)
@@ -61,7 +61,7 @@ classdef Individual < handle
         % 构造函数
         function obj = Individual()
             % 初始化个体处于 prebirth 状态对应的状态对象
-            obj.currentState = PrebirthState();
+            % obj.currentState = PrebirthState();
             % life_status 属性已在 properties 中初始化为 LifeCycleState.Prebirth
             % 无需在此处再次设置，除非需要根据外部输入初始化
         end
