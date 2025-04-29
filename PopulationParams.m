@@ -50,7 +50,7 @@ classdef PopulationParams < handle
             %   probs - 每个年龄的繁殖概率数组
             
             % 计算繁殖年龄范围
-            range_repro = obj.range_repro;
+            range_repro = obj.range_repro; %#ok<*PROP>
             
             % 计算繁殖概率分布参数
             repro_range_width = range_repro(2) - range_repro(1);
