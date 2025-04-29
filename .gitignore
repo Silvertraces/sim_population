@@ -39,6 +39,7 @@ codegen/
 sim_population.und/
 EvolutionTrees/
 derived/
+AIgenerate/
 
 # project files
 resources/
