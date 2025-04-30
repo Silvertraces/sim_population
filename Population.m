@@ -82,21 +82,20 @@ classdef Population < handle
             % 更新当前年份
             obj.current_year = obj.current_year + 1;
             
-            % 获取非死亡个体的逻辑索引
+            % 获取所有个体的生命状态
             life_statuses = [obj.individuals.life_status];
-            alive_mask = life_statuses ~= categorical("dead");
             
-            % 计算繁殖年龄范围
+            % 获取非死亡个体的逻辑索引
+            alive_mask = life_statuses < LifeCycleState.Dead;
+            
+            % 从种群参数获取繁殖年龄范围
             range_repro = obj.params.range_repro;
             
             % 只更新非死亡个体
             arrayfun(@(ind) ind.update(obj.current_year, obj.params.death_probs, range_repro), obj.individuals(alive_mask));
             
-            % 获取所有个体的生命状态
-            life_statuses = [obj.individuals.life_status];
-            
             % 找出成熟的个体
-            mature_mask = life_statuses == categorical("mature");
+            mature_mask = life_statuses == LifeCycleState.Mature;
             mature_individuals = obj.individuals(mature_mask);
             
             % 如果没有成熟个体，则跳过繁殖
@@ -124,25 +123,24 @@ classdef Population < handle
             
             % 根据数量较少的性别确定繁殖逻辑
             if num_males <= num_females
-                % 雄性是限制因素
+                % 雄性是限制因素，雌性是待选择一方
                 mature_limited = mature_males;
                 mature_selected = mature_females;
-                limited_ages = [mature_limited.age];
-                is_male_limited = true;
             else
-                % 雌性是限制因素
+                % 雌性是限制因素，雄性是待选择一方
                 mature_limited = mature_females;
                 mature_selected = mature_males;
-                limited_ages = [mature_limited.age];
-                is_male_limited = false;
             end
+            limited_ages = [mature_limited.age];
+            is_male_limited = num_males <= num_females;
             
-            % 计算每个限制性别个体的繁殖概率
+            % 计算每个限制性别个体的在繁殖概率数组中该取的概率的索引
             age_indices = limited_ages - range_repro(1) + 1;
             
-            if isempty(mature_limited)
-                return;
-            end
+            % % 冗余判断，前面已判断有足够的成熟个体
+            % if isempty(mature_limited)
+            %     return;
+            % end
             
             % 获取繁殖概率
             repro_probs = obj.params.repro_probs(age_indices);
@@ -151,6 +149,7 @@ classdef Population < handle
             will_reproduce = rand(size(repro_probs)) <= repro_probs;
             reproducing_limited = mature_limited(will_reproduce);
             
+            % 可能按照概率决定后，没有个体想要繁殖
             if isempty(reproducing_limited)
                 return;
             end
@@ -158,7 +157,7 @@ classdef Population < handle
             % 确定繁殖个体数量
             num_reproducing = length(reproducing_limited);
             
-            % 使用nchoosek随机选择另一方参与配对的个体
+            % 使用randperm随机选择另一方参与配对的个体
             selected_indices = randperm(length(mature_selected), num_reproducing);
             reproducing_selected = mature_selected(selected_indices);
             
@@ -192,8 +191,6 @@ classdef Population < handle
             % 确定出生年份（当前年份 + 生育周期）
             birth_year = obj.current_year + obj.params.birth_period;
             
-            
-            
             % 创建新个体数组使用createArray
             new_individuals = createArray(1, num_reproducing, "Individual");
             
@@ -218,8 +215,9 @@ classdef Population < handle
                 % 更新世代起始ID
                 obj.gen_next_ids(i) = obj.gen_next_ids(i) + gen_new_counts(i);
             end
-            % 将gen_ids转换为单元格数组
+            % 将gen_ids转换为元胞数组
             gen_idCells = num2cell(gen_ids);
+            
             % 批量赋值
             [new_individuals.gen_id] = deal(gen_idCells{:});
             
