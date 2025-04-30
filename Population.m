@@ -3,7 +3,7 @@ classdef Population < handle
     % 管理所有个体并实现种群动态
     
     properties
-        individuals     % 个体对象数组
+        individuals Individual % 个体对象数组
         current_year uint16 = 0 % 当前年份
         all_next_id uint32 = 1     % 下一个个体全局ID
         gen_next_ids uint32 = 1     % 每个世代的起始ID数组
@@ -28,7 +28,8 @@ classdef Population < handle
     
     methods
         function initializePopulation(obj, population_size)
-            % 初始化种群
+            % initializePopulation 初始化初始种群
+            % 根据指定的种群大小和参数初始化个体数组
             % 输入:
             %   population_size - 初始种群数量
             
@@ -36,66 +37,93 @@ classdef Population < handle
             num_males = round(population_size * obj.params.ratio_m);
             num_females = population_size - num_males;
             
-            % 使用createArray预分配个体数组
-            obj.individuals = createArray(1, population_size, "Individual");
-            
-            % 创建性别数组（前num_males个为雄性，其余为雌性）
-            genders = [repmat("male", 1, num_males), repmat("female", 1, num_females)];
+            % 使用 repmat 和 categorical 
+            % 批量创建性别数组（前num_males个为雄性，其余为雌性）
+            genders = [repmat(categorical("male"), 1, num_males), repmat(categorical("female"), 1, num_females)];
             
             % 创建ID数组
             all_ids = 1:population_size;
+            % 初始种群属于第1代
             gen_ids = 1:population_size;
             
+            % 使用createArray预分配个体数组
+            obj.individuals = createArray(1, population_size, "Individual");
             % 批量设置属性
             all_idCells = num2cell(all_ids);
             gen_idCells = num2cell(gen_ids);
-            [obj.individuals.all_id] = deal(all_idCells{:});
-            [obj.individuals.gen_id] = deal(gen_idCells{:});
-            
             % 使用num2cell将数组转换为单元格数组，然后批量赋值
             genderCells = num2cell(genders);
+            
+            [obj.individuals.all_id] = deal(all_idCells{:});
+            [obj.individuals.gen_id] = deal(gen_idCells{:});
             [obj.individuals.gender] = deal(genderCells{:});
             
-            % 设置其他属性
+            % 批量设置其他属性
+            % 初始种群代数为 1
             [obj.individuals.generation] = deal(1);
+            % 初始种群出生年份为 0 (或根据需要设置为其他值)
             [obj.individuals.birth_year] = deal(0);
             
             % 设置父母ID（初始种群无父母）
             % 创建父母ID数组（全局ID和世代ID）
-            parentAllIds = num2cell(repmat([0, 0], population_size, 1), 2);
-            parentGenIds = num2cell(repmat([0, 0], population_size, 1), 2);
-            [obj.individuals.parent_all_ids] = deal(parentAllIds{:});
-            [obj.individuals.parent_gen_ids] = deal(parentGenIds{:});
-            
             % 设置父母世代数（初始种群无父母，设为0）
-            parentGens = num2cell(repmat([0, 0], population_size, 1), 2);
-            [obj.individuals.parent_gens] = deal(parentGens{:});
+            parentAllIdsCells = num2cell(repmat([0, 0], population_size, 1), 2);
+            parentGenIdsCells = num2cell(repmat([0, 0], population_size, 1), 2);
+            parentGensCells = num2cell(repmat([0, 0], population_size, 1), 2);
+            [obj.individuals.parent_all_ids] = deal(parentAllIdsCells{:});
+            [obj.individuals.parent_gen_ids] = deal(parentGenIdsCells{:});
+            [obj.individuals.parent_gens] = deal(parentGensCells{:});
             
-            % 更新next_id
-            obj.all_next_id = population_size + 1;
-            obj.gen_next_ids(1) = population_size + 1;
+            % 更新下一个全局ID和下一代起始ID
+            obj.all_next_id = obj.all_next_id + population_size;
+            obj.gen_next_ids(1) = obj.gen_next_ids(1) + population_size; % 更新第1代的下一个起始ID
         end
         
         function simulateYear(obj)
-            % 模拟一年的种群变化
+            % simulateYear 模拟一年的种群变化
+            % 包括个体状态更新、死亡和繁殖
             
             % 更新当前年份
             obj.current_year = obj.current_year + 1;
             
-            % 获取所有个体的生命状态
+            % --- 个体状态更新和死亡 ---
+            % 获取所有个体的生命状态 (使用 [obj.individuals.life_status] 向量化获取枚举数组)
             life_statuses = [obj.individuals.life_status];
             
-            % 获取非死亡个体的逻辑索引
+            % 找出所有非死亡个体的逻辑索引
             alive_mask = life_statuses < LifeCycleState.Dead;
             
-            % 从种群参数获取繁殖年龄范围
-            range_repro = obj.params.range_repro;
+            % 获取需要传递给个体 update 方法的参数
+            death_probs = obj.params.death_probs;
+            repro_range = obj.params.range_repro;
+            prob_m_repro = obj.params.prob_m_repro;
+            birth_period = obj.params.birth_period;
             
-            % 只更新非死亡个体
-            arrayfun(@(ind) ind.update(obj.current_year, obj.params.death_probs, range_repro), obj.individuals(alive_mask));
-            
-            % 找出成熟的个体
-            mature_mask = life_statuses == LifeCycleState.Mature;
+            % 使用 arrayfun 批量更新非死亡个体的状态
+            % arrayfun 在这里是合适的，因为 Individual.update 是对象方法，处理单个个体
+            arrayfun(@(ind) ind.update(obj.current_year, death_probs, repro_range), obj.individuals(alive_mask));
+           
+            % --- 繁殖 ---
+            % 繁殖逻辑提取到单独的私有方法中
+            obj.performReproduction(repro_range, repro_probs, prob_m_repro, birth_period);
+
+            % --- 清理死亡个体 (可选，根据模拟需求决定是否立即移除) ---
+            % 如果需要立即移除死亡个体以节省内存或简化后续操作，可以在这里添加逻辑
+            % 例如:
+            % current_life_statuses = [obj.individuals.life_status]; % 重新获取更新后的状态
+            % alive_now_mask = current_life_statuses < LifeCycleState.Dead;
+            % obj.individuals = obj.individuals(alive_now_mask);
+        end
+
+
+        function performReproduction(obj, repro_range, repro_probs, prob_m_repro, birth_period)
+            % performReproduction 执行种群的繁殖过程
+            % 根据成熟个体的繁殖概率和性别比例生成后代
+
+            % 找出所有当前状态为 Mature 的个体
+            % 重新获取更新后的生命状态
+            current_life_statuses = [obj.individuals.life_status];
+            mature_mask = current_life_statuses == LifeCycleState.Mature;
             mature_individuals = obj.individuals(mature_mask);
             
             % 如果没有成熟个体，则跳过繁殖
@@ -105,10 +133,11 @@ classdef Population < handle
             
             % 获取成熟个体的性别
             genders = [mature_individuals.gender];
+
+            % 找出成熟的雄性和雌性
             male_mask = genders == categorical("male");
             female_mask = genders == categorical("female");
             
-            % 找出成熟的雄性和雌性
             mature_males = mature_individuals(male_mask);
             mature_females = mature_individuals(female_mask);
             
@@ -131,11 +160,14 @@ classdef Population < handle
                 mature_limited = mature_females;
                 mature_selected = mature_males;
             end
+
+            % 获取限制性别个体的年龄
             limited_ages = [mature_limited.age];
             is_male_limited = num_males <= num_females;
             
-            % 计算每个限制性别个体的在繁殖概率数组中该取的概率的索引
-            age_indices = limited_ages - range_repro(1) + 1;
+            % 计算每个限制性别个体在繁殖概率数组中的索引
+            % 年龄减去繁殖起始年龄，然后加 1 (因为索引从 1 开始)
+            age_indices = limited_ages - repro_range(1) + 1;
             
             % % 冗余判断，前面已判断有足够的成熟个体
             % if isempty(mature_limited)
@@ -143,41 +175,44 @@ classdef Population < handle
             % end
             
             % 获取繁殖概率
-            repro_probs = obj.params.repro_probs(age_indices);
+            repro_probs_for_limited = repro_probs(age_indices);
             
-            % 随机决定哪些个体繁殖
-            will_reproduce = rand(size(repro_probs)) <= repro_probs;
-            reproducing_limited = mature_limited(will_reproduce);
+            % 随机决定哪些个体繁殖 
+            will_reproduce_mask = rand(size(repro_probs_for_limited)) <= repro_probs_for_limited;
+            reproducing_limited = mature_limited(will_reproduce_mask);
             
             % 可能按照概率决定后，没有个体想要繁殖
             if isempty(reproducing_limited)
                 return;
             end
             
-            % 确定繁殖个体数量
-            num_reproducing = length(reproducing_limited);
+            % 确定繁殖对数
+            num_reproducing_pairs = length(reproducing_limited);
             
-            % 使用randperm随机选择另一方参与配对的个体
-            selected_indices = randperm(length(mature_selected), num_reproducing);
+            % 随机选择另一方参与配对的个体 
+            % 使用 randperm 确保每个个体最多被选择一次作为配对对象
+            selected_indices = randperm(length(mature_selected), num_reproducing_pairs);
             reproducing_selected = mature_selected(selected_indices);
             
-            % 根据性别限制因素，确定父母
+            % 根据性别限制因素，确定父母数组
             if is_male_limited
-                % 雄性是限制因素
+                % 雄性是限制因素，reproducing_limited 是父亲数组
                 fathers = reproducing_limited;
                 mothers = reproducing_selected;
             else
-                % 雌性是限制因素
+                % 雌性是限制因素，reproducing_limited 是母亲数组
                 mothers = reproducing_limited;
                 fathers = reproducing_selected;
             end
             
-            % 确定后代性别
-            offspring_genders = rand(1, num_reproducing) <= obj.params.prob_m_repro;
-            offspring_genders_str = repmat("female", 1, num_reproducing);
-            offspring_genders_str(offspring_genders) = "male";
+            % --- 创建新个体 ---
+            % 确定后代性别 
+            offspring_genders_logical = rand(1, num_reproducing_pairs) <= prob_m_repro;
+            % 使用 categorical 数组直接表示性别
+            offspring_genders = repmat(categorical("female"), 1, num_reproducing_pairs);
+            offspring_genders(offspring_genders_logical) = categorical("male");
             
-            % 获取父母ID
+            % 获取父母的全局ID、世代ID和代数 
             father_all_ids = [fathers.all_id];
             mother_all_ids = [mothers.all_id];
             father_gen_ids = [fathers.gen_id];
@@ -185,79 +220,80 @@ classdef Population < handle
             father_generations = [fathers.generation];
             mother_generations = [mothers.generation];
             
-            % 确定代数（父母中的最大代数 + 1）
+            % 确定后代的代数（父母中的最大代数 + 1）
             offspring_generations = max([father_generations; mother_generations], [], 1) + 1;
             
             % 确定出生年份（当前年份 + 生育周期）
-            birth_year = obj.current_year + obj.params.birth_period;
+            birth_years = obj.current_year + birth_period;
             
             % 创建新个体数组使用createArray
             new_individuals = createArray(1, num_reproducing, "Individual");
             
-            % 批量设置新个体属性
+            % --- 批量设置新个体属性 ---
             % 设置全局ID
-            all_ids = obj.all_next_id:(obj.all_next_id + num_reproducing - 1);
+            all_ids = obj.all_next_id : (obj.all_next_id + num_reproducing_pairs - 1);
+            % 使用 num2cell 和 deal 批量赋值
             all_idCells = num2cell(all_ids);
             [new_individuals.all_id] = deal(all_idCells{:});
             
-            % 设置世代ID
-            gen_ids = zeros(1, num_reproducing);
-            % 为每个新个体计算世代ID
-            for i = unique(offspring_generations)
-                % 更新世代起始ID数组
-                if length(obj.gen_next_ids) < i
-                    obj.gen_next_ids(i) = 1;
+            % 设置世代ID (需要按代数分组处理，这部分向量化比较复杂，保留循环或考虑 helper 函数)
+            gen_ids = zeros(1, num_reproducing_pairs);
+            unique_generations = unique(offspring_generations);
+
+            for i = 1:length(unique_generations)
+                current_gen = unique_generations(i);
+                % 确保 gen_next_ids 数组足够长
+                if length(obj.gen_next_ids) < current_gen
+                    obj.gen_next_ids(current_gen) = 1; % 新世代从 ID 1 开始
                 end
-                % 获取当前世代的新个体数量
-                gen_new_counts(i) = nnz(offspring_generations == i);
-                % 计算世代ID
-                gen_ids(offspring_generations==i) = obj.gen_next_ids(i):(obj.gen_next_ids(i) + gen_new_counts(i) - 1);
-                % 更新世代起始ID
-                obj.gen_next_ids(i) = obj.gen_next_ids(i) + gen_new_counts(i);
+
+                % 找出属于当前世代的新个体的逻辑索引
+                gen_mask = offspring_generations == current_gen;
+                num_new_in_gen = nnz(gen_mask);
+
+                % 计算当前世代新个体的世代ID
+                gen_ids(gen_mask) = obj.gen_next_ids(current_gen) : (obj.gen_next_ids(current_gen) + num_new_in_gen - 1);
+
+                % 更新当前世代的下一个起始ID
+                obj.gen_next_ids(current_gen) = obj.gen_next_ids(current_gen) + num_new_in_gen;
             end
-            % 将gen_ids转换为元胞数组
+            % 将 gen_ids 转换为元胞数组进行批量赋值
             gen_idCells = num2cell(gen_ids);
-            
-            % 批量赋值
             [new_individuals.gen_id] = deal(gen_idCells{:});
             
-            % 设置性别
-            genderCells = num2cell(offspring_genders_str);
-            [new_individuals.gender] = deal(genderCells{:});
             
-            % 设置代数
+            % 批量设置其他属性 (使用 num2cell 和 deal)
+            genderCells = num2cell(offspring_genders);
             genCells = num2cell(offspring_generations);
+            birthYearCells = num2cell(birth_years);
+
+            [new_individuals.gender] = deal(genderCells{:});
             [new_individuals.generation] = deal(genCells{:});
+            [new_individuals.birth_year] = deal(birthYearCells{:});
             
-            % 设置出生年份
-            [new_individuals.birth_year] = deal(birth_year);
-            
-            % 设置父母全局ID
+            % 设置父母全局ID、世代ID和世代数
             parentAllIdPairs = [father_all_ids; mother_all_ids]';
-            parentAllIdCells = num2cell(parentAllIdPairs, 2);
-            [new_individuals.parent_all_ids] = deal(parentAllIdCells{:});
-            
-            % 父母世代ID已经在前面获取，直接使用
-            
-            % 设置父母世代ID
             parentGenIdPairs = [father_gen_ids; mother_gen_ids]';
+            parentGensPairs = [father_generations; mother_generations]'; % 父母的代数
+
+            parentAllIdCells = num2cell(parentAllIdPairs, 2);
             parentGenIdCells = num2cell(parentGenIdPairs, 2);
-            [new_individuals.parent_gen_ids] = deal(parentGenIdCells{:});
-            
-            % 设置父母世代数
-            parentGensPairs = [father_generations; mother_generations]';
             parentGensCells = num2cell(parentGensPairs, 2);
+
+            [new_individuals.parent_all_ids] = deal(parentAllIdCells{:});
+            [new_individuals.parent_gen_ids] = deal(parentGenIdCells{:});
             [new_individuals.parent_gens] = deal(parentGensCells{:});
             
-            % 设置生命状态
-            [new_individuals.life_status] = deal("prebirth");
+            % 设置生命状态为 prebirth
+            [new_individuals.life_status] = deal(LifeCycleState.Prebirth);
             
-            % 更新next_id
-            obj.all_next_id = obj.all_next_id + num_reproducing;
+            % 更新下一个全局ID
+            obj.all_next_id = obj.all_next_id + num_reproducing_pairs;
             
             % 将新个体添加到种群中
             obj.individuals = [obj.individuals, new_individuals];
         end
+
         
         function simulateYears(obj, num_years)
             % 模拟多年的种群变化
