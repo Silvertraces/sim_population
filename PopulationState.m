@@ -43,6 +43,7 @@ classdef PopulationState < handle
             % 构造函数
             % 输入:
             %   year - 统计年份
+            %   deathcount - 当年死亡个体数
             %   individuals - 个体对象数组（所有个体）
             
             % 设置年份
@@ -67,6 +68,24 @@ classdef PopulationState < handle
                 obj.parent_gens = uint8.empty(0, 2);
                 obj.genders = categorical.empty(1, 0);
                 obj.life_statuses = LifeCycleState.empty(1, 0); % 初始化为空的枚举数组
+
+                % 生成并显示报告 (无已出生个体情况)
+                stateReport = struct(...
+                    '年份', obj.year, ...
+                    '总出生数', 0, ...
+                    '存活数', 0, ...
+                    '当年出生数', 0, ...
+                    '当年死亡数', obj.currentYearDeathsCount, ...
+                    '净增长', -double(obj.currentYearDeathsCount), ... % 净增长 = 出生 - 死亡
+                    '生命周期数量', zeros(1, length(categories(LifeCycleState.Premature:LifeCycleState.Dead))), ...
+                    '生命周期标签', {categories(LifeCycleState.Premature:LifeCycleState.Dead)}, ...
+                    '性别数量', zeros(1, length(categories(categorical.empty(1,0)))), ... % Assuming genders can be male/female
+                    '性别标签', {categories(categorical(["male", "female"]))} ...
+                );
+                fprintf('--- 种群状态报告 (年份 %d) ---\n', obj.year);
+                disp(stateReport);
+                fprintf('-----------------------------------------\n');
+
                 return;
             end
             
@@ -86,6 +105,27 @@ classdef PopulationState < handle
             obj.parent_all_ids = cell2mat(reshape({born_individuals.parent_all_ids}, sz_idvdl));
             obj.parent_gen_ids = cell2mat(reshape({born_individuals.parent_gen_ids}, sz_idvdl));
             obj.parent_gens = cell2mat(reshape({born_individuals.parent_gens}, sz_idvdl));
+
+            % 生成并显示报告
+            lifeCycleGenderStats = obj.LifeCycleGenderStats; % Access dependent property
+
+            stateReport = struct(...
+                '年份', obj.year, ...
+                '总出生数', lifeCycleGenderStats.TotalBorn, ...
+                '存活数', lifeCycleGenderStats.TotalAlive, ...
+                '当年出生数', lifeCycleGenderStats.CurrentYearBirthsCount, ...
+                '当年死亡数', obj.currentYearDeathsCount, ...
+                '净增长', lifeCycleGenderStats.NetGrowth, ...
+                '生命周期数量', lifeCycleGenderStats.LifeCycleCounts, ...
+                '生命周期标签', {lifeCycleGenderStats.LifeCycleLabels}, ...
+                '性别数量', lifeCycleGenderStats.GenderCounts, ...
+                '性别标签', {lifeCycleGenderStats.GenderLabels} ...
+            );
+
+            fprintf('--- 种群状态报告 (年份 %d) ---\n', obj.year);
+            disp(stateReport);
+            fprintf('-----------------------------------------\n');
+
         end
 
         % --- Dependent Property Get Methods ---
@@ -105,7 +145,7 @@ classdef PopulationState < handle
 
             % 计算存活掩膜
             maskAlive = obj.life_statuses > LifeCycleState.Prebirth & obj.life_statuses < LifeCycleState.Dead;
-            % 计算按性别分组的个体数量
+            % 计算按性别分组的个体数量 (仅存活个体)
             % 假设 Individual.gender_set 已经定义
             genderCounts = [
                 nnz(obj.genders == categorical("male") & maskAlive), ...
@@ -118,7 +158,7 @@ classdef PopulationState < handle
             % 计算存活个体总数 (生命状态 > Prebirth 且 < Dead)
             totalAlive = nnz(maskAlive);
 
-            % 计算相对比例 (基于 TotalBorn)
+            % 计算相对比例 (基于 TotalAlive)
             if totalAlive > 0
                 lifeCycleRatios = lifeCycleCounts / totalAlive;
                 genderRatios = genderCounts / totalAlive;
@@ -130,17 +170,21 @@ classdef PopulationState < handle
             % 获取当前年份出生数
             currentYearBirthsCount = nnz(obj.ages == 0 & obj.birth_years == obj.year);
 
+            % 净增长 = 出生 - 死亡 (使用构造函数传入的当年死亡数)
+            netGrowth = double(currentYearBirthsCount) - double(obj.currentYearDeathsCount);
+
+
             % 组织到结构体中
             stats = struct(...
                 'LifeCycleCounts', lifeCycleCounts, ...
                 'GenderCounts', genderCounts, ...
                 'TotalBorn', totalBorn, ...
                 'TotalAlive', totalAlive, ...
-                'LifeCycleRatios', lifeCycleRatios, ...
-                'GenderRatios', genderRatios, ...
+                'LifeCycleRatios', lifeCycleRatios, ... % [Premature, Mature, Old] Ratios based on TotalAlive
+                'GenderRatios', genderRatios, ... % [Male, Female] Ratios based on TotalAlive
                 'CurrentYearBirthsCount', currentYearBirthsCount, ...
                 'CurrentYearDeathsCount', obj.currentYearDeathsCount, ...
-                'NetGrowth', currentYearBirthsCount - obj.currentYearDeathsCount, ...
+                'NetGrowth', netGrowth, ...
                 'LifeCycleLabels', {categories(LifeCycleState.Premature:LifeCycleState.Old)}, ... % 对应的生命状态标签
                 'GenderLabels', {categories(obj.genders)} ... % 对应的性别标签
             );
@@ -199,7 +243,7 @@ classdef PopulationState < handle
                 currentGen = uniqueGens(i);
                 genMask = alive_generations == currentGen;
                 genLifeStatuses = alive_life_statuses(genMask);
-                generationTotalCounts(i) = genLifeStatuses;
+                generationTotalCounts(i) = nnz(genMask); % Count alive individuals in this generation
 
                 for j = 1:length(lifeCycleStatesForGen)
                     currentStateEnum = lifeCycleStatesForGen(j);
