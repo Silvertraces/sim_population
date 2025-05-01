@@ -1,4 +1,4 @@
-% 修改 Individual 类以使用状态模式和枚举类
+% 修改 Individual 类以使用状态模式和枚举类，并添加死亡事件
 classdef Individual < handle
     % Individual 个体类
     % 存储种群模拟中每个个体的属性和方法
@@ -6,8 +6,8 @@ classdef Individual < handle
     properties
         all_id uint32         % 个体全局编号
         gen_id uint32         % 个体世代编号
-        age int8 = 0     % 年龄
-        generation int8  % 代数
+        age int8 = 0     % 年龄，prebirth阶段可为负数
+        generation uint8  % 代数
         birth_year uint16 % 出生年份
         parent_all_ids (1, 2) uint32 % 亲代全局编号 [父亲ID, 母亲ID]
         parent_gen_ids (1, 2) uint32 % 亲代世代编号 [父亲ID, 母亲ID]
@@ -25,6 +25,11 @@ classdef Individual < handle
         gender_set = ["male", "female"] % 性别选项
         % life_status_set 已被 LifeCycleState 枚举类取代
         % life_status_set = ["prebirth", "premature", "mature", "old", "dead"] % 生命周期状态选项
+    end
+
+    % 定义死亡事件
+    events
+        DeathEvent % 当个体状态转换为 DeadState 时触发此事件
     end
     
     methods (Access = protected)
@@ -104,13 +109,24 @@ classdef Individual < handle
             % 使用状态模式更新个体的状态
             % 当前状态对象处理转换逻辑
 
+            % 存储更新前的生命状态
+            last_life_status = obj.life_status;
+
             % 将更新逻辑委托给当前状态对象
+            % 状态对象内部会根据个体属性和输入参数决定下一个状态
             nextState = obj.currentState.updateState(obj, current_year, death_probs, repro_range);
 
             % 更新当前状态对象
             obj.currentState = nextState;
             % 同步 life_status 属性，使用新状态对象返回的枚举成员
             obj.life_status = obj.currentState.getEnumState();
+
+            % 检查状态是否转换为 DeadState
+            % 如果个体之前不是 Dead 状态，并且现在是 Dead 状态，则触发死亡事件
+            if last_life_status ~= LifeCycleState.Dead && obj.life_status == LifeCycleState.Dead
+                % 触发 DeathEvent
+                notify(obj, 'DeathEvent');
+            end
         end
     end
 end
