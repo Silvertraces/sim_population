@@ -6,7 +6,7 @@ classdef PopulationParams < handle
     properties
         population (1,1) uint32 = 1e4 % 初始种群数量
         ratio_m (1,1) double {mustBeInRange(ratio_m, 0, 1)} = 0.5 % 初始雄性比例
-        age_expect (1,1) uint16 = 80 % 寿命期望值
+        age_expect (1,1) uint8 = 80 % 寿命期望值
         ratio_age_dist_sigma (1,1) double {mustBePositive} = 0.05 % 寿命标准差比例
         ratio_range_repro (1,2) double {mustBeInRange(ratio_range_repro, 0, 1)} = [0.2, 0.6] % 繁殖年龄相对区间
         ratio_age_repro_mu (1,1) double {mustBeInRange(ratio_age_repro_mu, 0, 1)} = 0.4 % 繁殖概率分布均值比例
