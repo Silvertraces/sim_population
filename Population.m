@@ -9,14 +9,26 @@ classdef Population < handle
         gen_next_ids uint32 = 1     % 每个世代的起始ID数组
     end
     
-    properties (Constant)
-        params = PopulationParams   % 种群参数对象
+    properties (Access = private)
+        params PopulationParams = PopulationParams  % 种群参数对象
     end
     
     methods
-        function obj = Population()
+        function obj = Population(params)
             % 构造函数
+            % 输入:
+            %   params - PopulationParams 对象，包含种群模拟所需的所有参数
 
+            if nargin == 1
+                % 验证输入的参数对象类型
+                if ~isa(params, 'PopulationParams')
+                    error('输入参数必须是 PopulationParams 类的对象');
+                end
+                obj.params = params; % 存储参数对象
+            elseif nargin > 1
+                error('参数过多，应只传入一个PopulationParams参数')
+            end
+            
             % 初始化世代起始ID
             obj.gen_next_ids = 1;
             
