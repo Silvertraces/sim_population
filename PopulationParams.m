@@ -27,10 +27,57 @@ classdef PopulationParams < handle
         death_probs        % 每个年龄的死亡概率累积分布
     end
     
-    methods (Access = public)
-        function obj = PopulationParams()
+    methods
+        % 修改构造函数以接受可选的结构体输入
+        function obj = PopulationParams(paramsStruct)
             % 构造函数
-            % 初始化参数，暂时不使用UI控件
+            % 接受一个可选的结构体作为输入，用于设置非依赖属性的值
+            % 未在结构体中提供的属性将使用默认值
+            % 输入:
+            %   paramsStruct (可选) - 包含要设置的属性及其值的结构体
+
+            % 检查是否有输入参数
+            if nargin == 1
+                % 验证输入是否为大小为 1 的结构体
+                if ~isstruct(paramsStruct) || ~isscalar(paramsStruct)
+                    error('输入参数必须是大小为 1 的结构体');
+                end
+
+                % 获取类中所有非依赖属性的名称
+                % 使用 meta.class 获取类元数据
+                mc = ?PopulationParams;
+                % 过滤出非依赖属性
+                propList = mc.PropertyList;
+                nonDependentProps = {propList(~[propList.Dependent]).Name};
+
+                % 获取输入结构体的字段名
+                inputFieldNames = fieldnames(paramsStruct);
+
+                % 遍历输入结构体的字段
+                for i = 1:length(inputFieldNames)
+                    fieldName = inputFieldNames{i};
+
+                    % 检查字段名是否是类的非依赖属性
+                    if ismember(fieldName, nonDependentProps)
+                        try
+                            % 尝试将结构体字段的值赋给对应的属性
+                            % MATLAB 会自动进行类型和属性验证
+                            obj.(fieldName) = paramsStruct.(fieldName);
+                        catch ME
+                            % 如果赋值过程中发生错误（例如，类型不匹配或验证失败）
+                            warning('无法为属性 "%s" 设置值。错误信息: %s', fieldName, ME.message);
+                            % 可以选择在这里抛出错误而不是警告，取决于需求
+                            % rethrow(ME);
+                        end
+                    else
+                        % 如果字段名不是类的非依赖属性，可以选择警告或忽略
+                        warning('输入结构体包含未知属性 "%s"，将被忽略。', fieldName);
+                    end
+                end
+            elseif nargin > 1
+                error('为populationparams的初始化参数过多')
+            end
+            % 如果没有输入参数，属性将使用其默认值进行初始化
         end
     end
     
