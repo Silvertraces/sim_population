@@ -7,6 +7,7 @@ classdef Population < handle
         current_year uint16 = 0 % 当前年份
         all_next_id uint32 = 1     % 下一个个体全局ID
         gen_next_ids uint32 = 1     % 每个世代的起始ID数组
+        currentYearDeathsCount uint16 = 0 % 当前年份死亡个体数
     end
     
     properties (Access = private)
@@ -28,7 +29,7 @@ classdef Population < handle
             elseif nargin > 1
                 error('参数过多，应只传入一个PopulationParams参数')
             end
-            
+
             % 初始化世代起始ID
             obj.gen_next_ids = 1;
             
@@ -102,9 +103,10 @@ classdef Population < handle
             % 获取所有个体的生命状态 (使用 [obj.individuals.life_status] 向量化获取枚举数组)
             life_statuses = [obj.individuals.life_status];
             
-            % 找出所有非死亡个体的逻辑索引
+            % 找出所有非死亡个体的逻辑索引，顺便统计update前的死亡个体数
             alive_mask = life_statuses < LifeCycleState.Dead;
-            
+            deathcount_pre = nnz(life_statuses == LifeCycleState.Dead);
+
             % 获取需要传递给个体 update 方法的参数
             death_probs = obj.params.death_probs;
             repro_range = obj.params.range_repro;
@@ -114,7 +116,12 @@ classdef Population < handle
             % 使用 arrayfun 批量更新非死亡个体的状态
             % arrayfun 在这里是合适的，因为 Individual.update 是对象方法，处理单个个体
             arrayfun(@(ind) ind.update(obj.current_year, death_probs, repro_range), obj.individuals(alive_mask));
-           
+
+            % update后的死亡个体数
+            life_statuses = [obj.individuals.life_status];
+            deathcount_post = nnz(life_statuses == LifeCycleState.Dead);
+            obj.currentYearDeathsCount = deathcount_post - deathcount_pre;
+
             % --- 繁殖 ---
             % 繁殖逻辑提取到单独的私有方法中
             obj.performReproduction(repro_range, repro_probs, prob_m_repro, birth_period);
@@ -322,7 +329,7 @@ classdef Population < handle
             % 输出:
             %   state - PopulationState对象，包含当前种群的统计信息
             
-            state = PopulationState(obj.current_year, obj.individuals);
+            state = PopulationState(obj.current_year, obj.currentYearDeathsCount, obj.individuals);
         end
     end
 end
