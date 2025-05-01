@@ -4,8 +4,8 @@ classdef Individual < handle
     % 存储种群模拟中每个个体的属性和方法
     
     properties
-        all_id uint16         % 个体全局编号
-        gen_id uint16         % 个体世代编号
+        all_id uint32         % 个体全局编号
+        gen_id uint32         % 个体世代编号
         age int8 = 0     % 年龄
         generation int8  % 代数
         birth_year uint16 % 出生年份
