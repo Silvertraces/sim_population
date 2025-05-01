@@ -7,17 +7,22 @@ classdef PopulationState < handle
         year uint16                  % 统计年份
         
         % 个体属性数组（非未出生个体）
-        all_ids                     % 全局ID数组
-        gen_ids                     % 世代ID数组
-        ages                        % 年龄数组
-        generations                 % 代数数组
-        birth_years                 % 出生年份数组
-        parent_all_ids              % 亲代全局ID数组 [父亲ID, 母亲ID]
-        parent_gen_ids              % 亲代世代ID数组 [父亲ID, 母亲ID]
-        parent_gens                 % 亲代世代数数组 [父亲世代, 母亲世代]
-        genders                     % 性别数组
-        life_statuses               % 生命状态数组
+        all_ids         uint16          % 全局ID数组
+        gen_ids         uint16          % 世代ID数组
+        ages            int8            % 年龄数组
+        generations     int8            % 代数数组
+        birth_years     uint16          % 出生年份数组
+        parent_all_ids  uint32          % 亲代全局ID数组 [父亲ID, 母亲ID]
+        parent_gen_ids  uint32          % 亲代世代ID数组 [父亲ID, 母亲ID]
+        parent_gens     uint8           % 亲代世代数数组 [父亲世代, 母亲世代]
+        genders         categorical     % 性别数组
+        life_statuses   LifeCycleState  % 生命状态数组
     end
+
+    properties (Dependent)
+        num_individuals uint32
+    end
+    
     
     methods
         function obj = PopulationState(year, individuals)
@@ -54,6 +59,10 @@ classdef PopulationState < handle
             obj.parent_all_ids = cell2mat(reshape({born_individuals.parent_all_ids}, sz_idvdl));
             obj.parent_gen_ids = cell2mat(reshape({born_individuals.parent_gen_ids}, sz_idvdl));
             obj.parent_gens = cell2mat(reshape({born_individuals.parent_gens}, sz_idvdl));
+        end
+
+        function val = get.num_individuals(obj)
+            val = numel(obj.all_ids);
         end
     end
 end
