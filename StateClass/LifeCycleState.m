@@ -11,9 +11,10 @@ classdef LifeCycleState < uint8
         Dead        (4) % 死亡
     end
 
-    properties (Dependent)
-        StateCN
-    end
+    % % 继承基础超类的用法与从属属性用法互斥
+    % properties (Dependent)
+    %     StateCN
+    % end
     
     % 可以选择在此处添加与状态本身相关的可复用方法或属性
     % 例如，一个方法来获取状态的显示名称（如果与成员名不同）
@@ -29,22 +30,22 @@ classdef LifeCycleState < uint8
             tf = obj > otherState;
         end
 
-        % get.StateCN: 获取状态的显示名称 (如果需要)
-        function name = get.StateCN(obj)
-            switch obj
-                case LifeCycleState.Prebirth
-                    name = '出生前';
-                case LifeCycleState.Premature
-                    name = '未成熟';
-                case LifeCycleState.Mature
-                    name = '成熟';
-                case LifeCycleState.Old
-                    name = '老年';
-                case LifeCycleState.Dead
-                    name = '死亡';
-                otherwise
-                    name = char(obj); % 默认使用成员名
-            end
-        end
+        % % get.StateCN: 获取状态的显示名称 (如果需要)
+        % function name = get.StateCN(obj)
+        %     switch obj
+        %         case LifeCycleState.Prebirth
+        %             name = '出生前';
+        %         case LifeCycleState.Premature
+        %             name = '未成熟';
+        %         case LifeCycleState.Mature
+        %             name = '成熟';
+        %         case LifeCycleState.Old
+        %             name = '老年';
+        %         case LifeCycleState.Dead
+        %             name = '死亡';
+        %         otherwise
+        %             name = char(obj); % 默认使用成员名
+        %     end
+        % end
     end
 end
