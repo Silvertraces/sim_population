@@ -18,7 +18,8 @@ classdef PopulationDashboard < handle
         AxAbsCountLifeCycle matlab.graphics.axis.Axes  % 生命周期绝对数量分组条形图 axes 3
         AxAbsCountGender matlab.graphics.axis.Axes      % 性别绝对数量分组条形图 axes 4
         AxGlobalTimeline matlab.graphics.axis.Axes     % 全局时间线折线图 axes 5
-        AxAgePie matlab.graphics.axis.Axes             % 当前年份年龄结构饼图 axes 6
+        AxGenderPie matlab.graphics.axis.Axes             % 当前年份性别结构饼图 axes 6
+        AxAgeDonut matlab.graphics.axis.Axes           % 当前年份年龄结构甜甜圈图 axes
         AxAgeHistKDE matlab.graphics.axis.Axes         % 当前年份年龄结构直方图+核密度估计 axes 7
         AxAgeViolin matlab.graphics.axis.Axes          % 当前年份年龄结构小提琴图 axes 8
         AxGenGroupedStacked matlab.graphics.axis.Axes  % 世代分组堆叠条形图 axes 9
@@ -36,7 +37,7 @@ classdef PopulationDashboard < handle
 
     properties (Constant, Access = private)
         LayoutRows = 4 % 布局行数
-        LayoutCols = 3 % 布局列数
+        LayoutCols = 4 % 布局列数 % 修改为 4x4 布局
     end
 
     methods
@@ -55,11 +56,13 @@ classdef PopulationDashboard < handle
             % 调整布局的间距和边距 (可选，根据需要调整)
             obj.Layout.TileSpacing = 'compact'; % 或 'tight', 'none'
             obj.Layout.Padding = 'compact';     % 或 'tight', 'none'
+            % 设置图块索引顺序为列优先
             obj.Layout.TileIndexing = 'columnmajor';
+
 
             % --- 创建并放置子图 axes ---
 
-            % 左侧 4 个布局 (生命周期/性别 比例和数量)
+            % 左侧 4 个布局 (生命周期/性别 比例和数量) - 占据第 1 列
             obj.AxRelRatioLifeCycle = nexttile(obj.Layout); % (1,1)
             title(obj.AxRelRatioLifeCycle, '生命周期相对比例 (图1)'); % 占位标题
             ylabel(obj.AxRelRatioLifeCycle, '比例');
@@ -77,46 +80,50 @@ classdef PopulationDashboard < handle
             ylabel(obj.AxAbsCountGender, '数量');
 
 
-            % 中间剩余 3 个布局 (年龄结构)
-            obj.AxAgePie = nexttile(obj.Layout); % (1,2)
-            title(obj.AxAgePie, '当前年份年龄结构饼图 (图6)'); % 占位标题
+            % 性别结构饼图 - 占据 (1,2) 位置
+            obj.AxGenderPie = nexttile(obj.Layout); % (1,2)
+            title(obj.AxGenderPie, '当前年份性别结构饼图 (图6)'); % 占位标题
+            
 
-            obj.AxAgeHistKDE = nexttile(obj.Layout); % (2,2)
+            % 年龄结构直方图+核密度估计 - 占据 (2,2) 位置，跨 1 行 2 列
+            obj.AxAgeHistKDE = nexttile(obj.Layout, [1 2]); % 从 (2,2) 开始，跨 1 行 2 列 (占据 6, 7)
             title(obj.AxAgeHistKDE, '当前年份年龄分布 (图7)'); % 占位标题
             xlabel(obj.AxAgeHistKDE, '年龄');
             ylabel(obj.AxAgeHistKDE, '密度/计数');
             grid(obj.AxAgeHistKDE, 'on');
 
-            obj.AxAgeViolin = nexttile(obj.Layout); % (3,2)
+            % 年龄结构小提琴图 - 占据 (3,2) 位置，跨 1 行 2 列
+            obj.AxAgeViolin = nexttile(obj.Layout, [1 2]); % 从 (3,2) 开始，跨 1 行 2 列 (占据 10, 11)
             title(obj.AxAgeViolin, '当前年份年龄分布小提琴图 (图8)'); % 占位标题
             ylabel(obj.AxAgeViolin, '年龄');
 
-
-            % 中间与右侧最下面 2 块合并 (全局时间线)
-            % nexttile(row, col, [rowspan, colspan])
-            obj.AxGlobalTimeline = nexttile(obj.Layout, [1 2]); % 从 (4,2) 开始，跨 1 行 2 列
+            % 全局时间线折线图 - 占据 (4,2) 位置，跨 1 行 3 列
+            obj.AxGlobalTimeline = nexttile(obj.Layout, [1 3]); % 从 (4,2) 开始，跨 1 行 2 列 (占据 8, 12)
             title(obj.AxGlobalTimeline, '种群总数量时间线 (图5)'); % 占位标题
             xlabel(obj.AxGlobalTimeline, '年份');
             ylabel(obj.AxGlobalTimeline, '总数量');
             grid(obj.AxGlobalTimeline, 'on'); % 添加网格线
 
+            % 年龄结构甜甜圈图 - 占据 (1,3) 位置
+            obj.AxAgeDonut = nexttile(obj.Layout); % (1,3)
+            title(obj.AxAgeDonut, '当前年份年龄结构甜甜圈图'); % 占位标题
+            
 
-            % 右上布局 (世代分组堆叠条形图)
-            obj.AxGenGroupedStacked = nexttile(obj.Layout); % (1,3)
+            % 世代分组堆叠条形图 - 占据 (1,4) 位置
+            obj.AxGenGroupedStacked = nexttile(obj.Layout); % (1,4)
             title(obj.AxGenGroupedStacked, '世代分组数量 (图9)'); % 占位标题
             ylabel(obj.AxGenGroupedStacked, '数量');
             grid(obj.AxGenGroupedStacked, 'on');
 
 
-            % 右侧中间 2 个图块合并 (世代相对比例)
-            % nexttile(row, col, [rowspan, colspan])
-            obj.AxGenRelRatio = nexttile(obj.Layout, [2 1]); % 从 (2,3) 开始，跨 2 行 1 列
+            % 世代相对比例堆叠条形图 - 占据 (2,4) 位置，跨 2 行 1 列
+            obj.AxGenRelRatio = nexttile(obj.Layout, [2 1]); % 从 (2,4) 开始，跨 2 行 1 列 (占据 14, 15)
             title(obj.AxGenRelRatio, '世代相对比例 (图10)'); % 占位标题
             ylabel(obj.AxGenRelRatio, '比例');
             grid(obj.AxGenRelRatio, 'on');
 
             % 可以选择添加一个总标题
-            % title(obj.Layout, '种群模拟数据可视化展板');
+            title(obj.Layout, '种群模拟数据可视化展板');
 
             % 确保图窗可见
             figure(obj.Figure);
@@ -223,7 +230,8 @@ classdef PopulationDashboard < handle
                     cla(obj.AxRelRatioLifeCycle); cla(obj.AxRelRatioGender);
                     cla(obj.AxAbsCountLifeCycle); cla(obj.AxAbsCountGender);
                     % AxGlobalTimeline 由 addStateSnapshot 处理
-                    cla(obj.AxAgePie); cla(obj.AxAgeHistKDE); cla(obj.AxAgeViolin);
+                    cla(obj.AxGenderPie); cla(obj.AxAgeDonut); % 清空饼图和甜甜圈图 axes
+                    cla(obj.AxAgeHistKDE); cla(obj.AxAgeViolin);
                     cla(obj.AxGenGroupedStacked); cla(obj.AxGenRelRatio);
                     return;
                 end
@@ -247,16 +255,25 @@ classdef PopulationDashboard < handle
             % 如果需要在此处进行全量重绘（例如 displayYear 调用），可以在 displayYear 中单独处理
             % 或者修改 updateGlobalTimelinePlotFull 方法并在这里调用
 
-            % 更新年龄结构图 (使用 stateToDisplay)
+            % 更新性别结构饼图和甜甜圈图 (图6)
+            % 注意：这些图需要 PopulationState 存储原始年龄数据或年龄分布统计
+            % 假设 PopulationState 有一个 ages 属性
+            if isprop(stateToDisplay, 'ages') && ~isempty(stateToDisplay.ages)
+                 % 调用更新饼图和甜甜圈图的方法
+                 obj.updatePieDonutPlots(stateToDisplay.ages, stateToDisplay.year); % 传递年龄数据和年份
+            else
+                 warning('PopulationState 对象不包含年龄数据，跳过饼图和甜甜圈图更新');
+                 cla(obj.AxGenderPie); cla(obj.AxAgeDonut);
+            end
+
+            % 更新年龄结构直方图和小提琴图 (图7, 图8)
             % 注意：这些图需要 PopulationState 存储原始年龄数据或年龄分布统计
             % 假设 PopulationState 有一个 ages 属性
             if isprop(stateToDisplay, 'ages') && ~isempty(stateToDisplay.ages)
                  obj.updateAgeStructurePlots(stateToDisplay.ages); % 传递年龄数据
             else
                  warning('PopulationState 对象不包含年龄数据，跳过年龄结构图更新');
-                 cla(obj.AxAgePie);
-                 cla(obj.AxAgeHistKDE);
-                 cla(obj.AxAgeViolin);
+                 cla(obj.AxAgeHistKDE); cla(obj.AxAgeViolin);
             end
 
 
@@ -369,7 +386,18 @@ classdef PopulationDashboard < handle
         %     end
 
         %     years = [history.year];
-        %     totalPopulations = [history.num_individuals];
+        %     totalPopulations = [history.SimulationHistory.num_individuals]; % Fix: Access num_individuals from history elements
+        %     if isempty(totalPopulations)
+        %          title(obj.AxGlobalTimeline, '种群总数量时间线 (无数据)');
+        %          xlabel(obj.AxGlobalTimeline, '年份');
+        %          ylabel(obj.AxGlobalTimeline, '总数量');
+        %          grid(obj.AxGlobalTimeline, 'on');
+        %          % 绘制空的线条对象
+        %          obj.GlobalTimelineLine = plot(obj.AxGlobalTimeline, NaN, NaN, '-o');
+        %          xlim(obj.AxGlobalTimeline, [0, 1]);
+        %          return;
+        %     end
+
 
         %     % 绘制线条并存储句柄
         %     obj.GlobalTimelineLine = plot(obj.AxGlobalTimeline, years, totalPopulations, '-o');
@@ -383,7 +411,7 @@ classdef PopulationDashboard < handle
 
 
         % --- 添加用于更新各个子图的具体方法 ---
-        % 这些方法现在会从传入的 PopulationState 对象中获取数据
+        % 这些方法现在会从传入的 PopulationState 对象或数据中获取数据
 
         function updateLifeCycleRatioPlots(obj, state)
             % updateLifeCycleRatioPlots 更新生命周期比例相关的图 (图1, 图2)
@@ -458,46 +486,21 @@ classdef PopulationDashboard < handle
              end
          end
 
-         % updateGlobalTimelinePlot 方法不再接收 history 数组，而是直接操作存储的线条句柄
-         % function updateGlobalTimelinePlot(obj, history)
-         %     % updateGlobalTimelinePlot 更新全局时间线图 (图5)
-         %     % history: PopulationState 对象的历史记录数组
-         %     % 此方法已废弃，更新逻辑已移至 addStateSnapshot 并使用细粒度更新
-         % end
-
 
          function updateAgeStructurePlots(obj, ages)
-            % updateAgeStructurePlots 更新年龄结构相关的图 (图6, 图7, 图8)
+            % updateAgeStructurePlots 更新年龄结构相关的图 (图7, 图8)
             % ages: 当前年份所有已出生个体的年龄数组
+            % 注意：饼图和甜甜圈图的更新逻辑已移至 updatePieDonutPlots
 
             % 清除旧图
-            cla(obj.AxAgePie);
             cla(obj.AxAgeHistKDE);
             cla(obj.AxAgeViolin);
 
             if isempty(ages)
-                 title(obj.AxAgePie, '当前年份年龄结构饼图 (无数据)');
                  title(obj.AxAgeHistKDE, '当前年份年龄分布 (无数据)');
                  title(obj.AxAgeViolin, '当前年份年龄分布小提琴图 (无数据)');
+                 return;
             end
-
-            % 饼图 (需要将年龄分组)
-            % 示例年龄分组 (您可以根据需要调整)
-            age_group_edges = [0, 10, 20, 30, 40, 50, 60, 70, Inf];
-            age_group_labels = {'0-9', '10-19', '20-29', '30-39', '40-49', '50-59', '60-69', '70+'};
-            [counts, ~, bin_indices] = histcounts(ages, age_group_edges);
-            % 过滤掉计数为零的组，避免饼图切片不显示
-            valid_counts = counts(counts > 0);
-            valid_labels = age_group_labels(counts > 0);
-
-            if ~isempty(valid_counts)
-                pie(obj.AxAgePie, valid_counts);
-                title(obj.AxAgePie, sprintf('当前年份年龄结构 (%d)', obj.SimulationHistory(end).year));
-                legend(obj.AxAgePie, valid_labels, 'Location', 'southoutside', 'Orientation', 'horizontal'); % 添加图例
-            else
-                 title(obj.AxAgePie, sprintf('当前年份年龄结构 (%d) - 无数据', obj.SimulationHistory(end).year));
-            end
-
 
             % 直方图和 KDE
             histogram(obj.AxAgeHistKDE, ages, 'Normalization', 'probability');
@@ -525,6 +528,57 @@ classdef PopulationDashboard < handle
 
          end
 
+         function updatePieDonutPlots(obj, ages, year)
+            % updatePieDonutPlots 更新性别结构饼图和甜甜圈图 (图6)
+            % ages: 当前年份所有已出生个体的年龄数组 (假设这里仍然绘制年龄分布)
+            % year: 当前年份
+
+            % 清除旧图
+            cla(obj.AxGenderPie);
+            cla(obj.AxAgeDonut);
+
+            if isempty(ages)
+                 title(obj.AxGenderPie, '饼图 (无数据)');
+                 title(obj.AxAgeDonut, '甜甜圈图 (无数据)');
+                 return;
+            end
+
+            % 饼图 (需要将年龄分组)
+            % 示例年龄分组 (您可以根据需要调整)
+            age_group_edges = [0, 10, 20, 30, 40, 50, 60, 70, Inf];
+            age_group_labels = {'0-9', '10-19', '20-29', '30-39', '40-49', '50-59', '60-69', '70+'};
+            [counts, ~, bin_indices] = histcounts(ages, age_group_edges);
+            % 过滤掉计数为零的组，避免饼图切片不显示
+            valid_counts = counts(counts > 0);
+            valid_labels = age_group_labels(counts > 0);
+
+            if ~isempty(valid_counts)
+                % 绘制饼图 (在 AxGenderPie)
+                pie(obj.AxGenderPie, valid_counts);
+                title(obj.AxGenderPie, '饼图'); % 子图标题
+                legend(obj.AxGenderPie, valid_labels, 'Location', 'southoutside', 'Orientation', 'horizontal'); % 添加图例
+
+                % 绘制甜甜圈图 (在 AxAgeDonut, 需要 R2023b 或更高版本)
+                 try
+                     donut(obj.AxAgeDonut, valid_counts);
+                     title(obj.AxAgeDonut, '甜甜圈图'); % 子图标题
+                     % 甜甜圈图通常自带标签或图例，根据需要调整
+                 catch
+                     warning('当前 MATLAB 版本不支持 donutchart，跳过甜甜圈图绘制');
+                     title(obj.AxAgeDonut, '甜甜圈图 (不支持)');
+                 end
+
+            else
+                 title(obj.AxGenderPie, '饼图 (无数据)');
+                 title(obj.AxAgeDonut, '甜甜圈图 (无数据)');
+            end
+
+            % Removed panel title update as panel is removed
+            % obj.AgePieDonutPanel.Title = sprintf('图表面板 1 (图6, 年份: %d)', year);
+
+         end
+
+
          function updateGenerationPlots(obj, state)
             % updateGenerationPlots 更新世代相关的图 (图9, 图10)
             % state: 当前年份的 PopulationState 对象 (假设只需要最新年份的世代分布)
@@ -536,6 +590,7 @@ classdef PopulationDashboard < handle
             if isempty(state.generations) || isempty(state.life_statuses)
                  title(obj.AxGenGroupedStacked, '世代分组数量 (无数据)');
                  title(obj.AxGenRelRatio, '世代相对比例 (无数据)');
+                 return;
             end
 
             % 获取最新的世代和生命状态数据
@@ -545,6 +600,7 @@ classdef PopulationDashboard < handle
             if isempty(generations) || isempty(lifeStatuses)
                  title(obj.AxGenGroupedStacked, '世代分组数量 (无数据)');
                  title(obj.AxGenRelRatio, '世代相对比例 (无数据)');
+                 return;
             end
 
 
