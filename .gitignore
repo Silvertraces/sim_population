@@ -35,6 +35,9 @@ codegen/
 # buildtool cache folder
 .buildtool/
 
+# figures
+figures/
+
 # external tools
 sim_population.und/
 EvolutionTrees/
