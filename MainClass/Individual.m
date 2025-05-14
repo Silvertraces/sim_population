@@ -4,21 +4,21 @@ classdef Individual < handle
     % 存储种群模拟中每个个体的属性和方法
     
     properties
-        all_id uint32         % 个体全局编号
-        gen_id uint32         % 个体世代编号
-        age int8 = 0     % 年龄，prebirth阶段可为负数
-        generation uint8  % 代数
-        birth_year uint16 % 出生年份
-        parent_all_ids (1, 2) uint32 % 亲代全局编号 [父亲ID, 母亲ID]
-        parent_gen_ids (1, 2) uint32 % 亲代世代编号 [父亲ID, 母亲ID]
-        parent_gens (1, 2) uint8 % 亲代世代数 [父亲ID, 母亲ID]
+        all_id int32         % 个体全局编号
+        gen_id int32         % 个体世代编号
+        age int32 = 0     % 年龄，prebirth阶段可为负数
+        generation int32  % 代数
+        birth_year int32 % 出生年份
+        parent_all_ids (1, 2) int32 % 亲代全局编号 [父亲ID, 母亲ID]
+        parent_gen_ids (1, 2) int32 % 亲代世代编号 [父亲ID, 母亲ID]
+        parent_gens (1, 2) int32 % 亲代世代数 [父亲ID, 母亲ID]
         gender categorical % 性别 (male:雄性, female:雌性)
         % life_status 属性类型改为 LifeCycleState 枚举类型
-        life_status LifeCycleState = LifeCycleState.Prebirth % 生命周期状态 (与 currentState 同步)
+        life_status LifeCycleState = LifeCycleState.Premature % 生命周期状态 (与 currentState 同步)
     end
 
     properties (Access = private)
-        currentState LifeState = PrebirthState() % 当前状态对象
+        currentState LifeState = PrematureState() % 当前状态对象
     end
     
     properties (Constant)

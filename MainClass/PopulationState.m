@@ -5,19 +5,19 @@ classdef PopulationState < handle
     
     properties
         % 基本信息
-        year uint16                     % 统计年份
-        currentYearDeathsCount uint16   % 当年死亡个体数
+        year int32                     % 统计年份
+        currentYearDeathsCount int32   % 当年死亡个体数
         
         % 个体属性数组（非未出生个体）
         % 这些是原始数据，依赖属性将基于它们进行计算
-        all_ids         uint32          % 全局ID数组
-        gen_ids         uint32          % 世代ID数组
-        ages            int8            % 年龄数组，prebirth阶段可为负数
-        generations     uint8           % 代数数组
-        birth_years     uint16          % 出生年份数组
-        parent_all_ids  uint32          % 亲代全局ID数组 [父亲ID, 母亲ID]
-        parent_gen_ids  uint32          % 亲代世代ID数组 [父亲ID, 母亲ID]
-        parent_gens     uint8           % 亲代世代数数组 [父亲世代, 母亲世代]
+        all_ids         int32          % 全局ID数组
+        gen_ids         int32          % 世代ID数组
+        ages            int32            % 年龄数组，prebirth阶段可为负数
+        generations     int32           % 代数数组
+        birth_years     int32          % 出生年份数组
+        parent_all_ids  int32          % 亲代全局ID数组 [父亲ID, 母亲ID]
+        parent_gen_ids  int32          % 亲代世代ID数组 [父亲ID, 母亲ID]
+        parent_gens     int32           % 亲代世代数数组 [父亲世代, 母亲世代]
         genders         categorical     % 性别数组
         life_statuses   LifeCycleState  % 生命状态数组
     end
@@ -27,13 +27,13 @@ classdef PopulationState < handle
 
         % 生命周期和性别统计数据 (用于条形图)
         LifeCycleGenderStats struct
+        
+        % % 世代统计数据 (用于世代条形图)
+        % GenerationStats struct
 
         % % 年龄分布统计数据 (用于饼图、甜甜圈图、直方图、KDE、小提琴图)
         % AgeDistributionStats struct
-
-        % 世代统计数据 (用于世代条形图)
-        GenerationStats struct
-
+        
         % % 全局时间线图所需指标 (向量)
         % GlobalTimelineMetrics double
     end
@@ -58,33 +58,33 @@ classdef PopulationState < handle
             % 如果没有已出生个体，则返回空属性
             if isempty(born_individuals)
                 % 初始化所有属性为空数组或默认值
-                obj.all_ids = uint32.empty(1, 0);
-                obj.gen_ids = uint32.empty(1, 0);
+                obj.all_ids = int32.empty(1, 0);
+                obj.gen_ids = int32.empty(1, 0);
                 obj.ages = int8.empty(1, 0);
                 obj.generations = uint8.empty(1, 0);
                 obj.birth_years = uint16.empty(1, 0);
-                obj.parent_all_ids = uint32.empty(0, 2); % 父母ID是 Nx2 矩阵
-                obj.parent_gen_ids = uint32.empty(0, 2);
+                obj.parent_all_ids = int32.empty(0, 2); % 父母ID是 Nx2 矩阵
+                obj.parent_gen_ids = int32.empty(0, 2);
                 obj.parent_gens = uint8.empty(0, 2);
                 obj.genders = categorical.empty(1, 0);
                 obj.life_statuses = LifeCycleState.empty(1, 0); % 初始化为空的枚举数组
 
-                % 生成并显示报告 (无已出生个体情况)
-                stateReport = struct(...
-                    '年份', obj.year, ...
-                    '总出生数', 0, ...
-                    '存活数', 0, ...
-                    '当年出生数', 0, ...
-                    '当年死亡数', obj.currentYearDeathsCount, ...
-                    '净增长', -double(obj.currentYearDeathsCount), ... % 净增长 = 出生 - 死亡
-                    '生命周期数量', zeros(1, length(categories(LifeCycleState.Premature:LifeCycleState.Dead))), ...
-                    '生命周期标签', {categories(LifeCycleState.Premature:LifeCycleState.Dead)}, ...
-                    '性别数量', zeros(1, length(categories(categorical.empty(1,0)))), ... % Assuming genders can be male/female
-                    '性别标签', {categories(categorical(["male", "female"]))} ...
-                );
-                fprintf('--- 种群状态报告 (年份 %d) ---\n', obj.year);
-                disp(stateReport);
-                fprintf('-----------------------------------------\n');
+                % % 生成并显示报告 (无已出生个体情况)
+                % stateReport = struct(...
+                %     '年份', obj.year, ...
+                %     '总出生数', 0, ...
+                %     '存活数', 0, ...
+                %     '当年出生数', 0, ...
+                %     '当年死亡数', obj.currentYearDeathsCount, ...
+                %     '净增长', -double(obj.currentYearDeathsCount), ... % 净增长 = 出生 - 死亡
+                %     '生命周期数量', zeros(1, length(categories(LifeCycleState.Premature:LifeCycleState.Dead))), ...
+                %     '生命周期标签', {categories(LifeCycleState.Premature:LifeCycleState.Dead)}, ...
+                %     '性别数量', zeros(1, length(categories(categorical.empty(1,0)))), ... % Assuming genders can be male/female
+                %     '性别标签', {categories(categorical(["male", "female"]))} ...
+                % );
+                % fprintf('--- 种群状态报告 (年份 %d) ---\n', obj.year);
+                % disp(stateReport);
+                % fprintf('-----------------------------------------\n');
 
                 return;
             end
@@ -108,18 +108,32 @@ classdef PopulationState < handle
 
             % 生成并显示报告
             lifeCycleGenderStats = obj.LifeCycleGenderStats; % Access dependent property
-
-            stateReport = struct(...
-                '年份', obj.year, ...
-                '总出生数', lifeCycleGenderStats.TotalBorn, ...
-                '存活数', lifeCycleGenderStats.TotalAlive, ...
-                '当年出生数', lifeCycleGenderStats.CurrentYearBirthsCount, ...
-                '当年死亡数', obj.currentYearDeathsCount, ...
-                '净增长', lifeCycleGenderStats.NetGrowth, ...
-                '生命周期数量', lifeCycleGenderStats.LifeCycleCounts, ...
-                '生命周期标签', {lifeCycleGenderStats.LifeCycleLabels}, ...
-                '性别数量', lifeCycleGenderStats.GenderCounts, ...
-                '性别标签', {lifeCycleGenderStats.GenderLabels} ...
+            % for fieldName = fieldnames(lifeCycleGenderStats)'
+            %     disp(fieldName)
+            %     disp(size(lifeCycleGenderStats.(char(fieldName))))
+            % end
+            stateReport = table(obj.year, ...
+                lifeCycleGenderStats.TotalBorn, ...
+                lifeCycleGenderStats.TotalAlive, ...
+                lifeCycleGenderStats.CurrentYearBirthsCount, ...
+                obj.currentYearDeathsCount, ...
+                lifeCycleGenderStats.NetGrowth, ...
+                {lifeCycleGenderStats.LifeCycleCounts}, ...
+                lifeCycleGenderStats.LifeCycleLabels, ...
+                lifeCycleGenderStats.GenderCounts, ...
+                lifeCycleGenderStats.GenderLabels, ...
+                'VariableNames', {
+                    '年份', ...
+                    '总出生数', ...
+                    '存活数', ...
+                    '当年出生数', ...
+                    '当年死亡数', ...
+                    '净增长', ...
+                    '生命周期数量', ...
+                    '生命周期标签', ...
+                    '性别数量', ...
+                    '性别标签', ...
+                } ...
             );
 
             fprintf('--- 种群状态报告 (年份 %d) ---\n', obj.year);
@@ -185,86 +199,88 @@ classdef PopulationState < handle
                 'CurrentYearBirthsCount', currentYearBirthsCount, ...
                 'CurrentYearDeathsCount', obj.currentYearDeathsCount, ...
                 'NetGrowth', netGrowth, ...
-                'LifeCycleLabels', {categories(LifeCycleState.Premature:LifeCycleState.Old)}, ... % 对应的生命状态标签
-                'GenderLabels', {categories(obj.genders)} ... % 对应的性别标签
+                'LifeCycleLabels', {cellstr(LifeCycleState.toCategorical([
+                    LifeCycleState.Premature 
+                    LifeCycleState.Mature
+                    LifeCycleState.Old]'))}, ... % 对应的生命状态标签
+                'GenderLabels', {categories(obj.genders, "OutputType", "char")'} ... % 对应的性别标签
             );
         end
 
-        % function stats = get.AgeDistributionStats(obj)
-        %     % 计算年龄分布统计数据
+        % function stats = get.GenerationStats(obj)
+        %     % 计算世代统计数据
 
-        %     % 获取存活个体的年龄和性别数组
+        %     % 过滤出存活个体
         %     alive_mask = obj.life_statuses > LifeCycleState.Prebirth & obj.life_statuses < LifeCycleState.Dead;
-        %     aliveAges = obj.ages(alive_mask);
-        %     aliveGenders = obj.genders(alive_mask);
+        %     alive_generations = obj.generations(alive_mask);
+        %     alive_life_statuses = obj.life_statuses(alive_mask);
 
-        %     % 计算按年龄分组的个体数量 (仅存活个体)
-        %     % 示例年龄分组 (您可以根据需要调整)
-        %     age_group_edges = [0, 10, 20, 30, 40, 50, 60, 70, Inf];
-        %     ageGroupCounts = histcounts(aliveAges, age_group_edges);
-        %     ageGroupLabels = {'0-9', '10-19', '20-29', '30-39', '40-49', '50-59', '60-69', '70+'};
-        %      % 过滤掉计数为零的组的标签
-        %     if ~isempty(ageGroupCounts)
-        %          ageGroupLabels = ageGroupLabels(ageGroupCounts > 0);
-        %     else
-        %          ageGroupLabels = string.empty(1, 0);
+        %     uniqueGens = unique(alive_generations);
+        %     % 统计 Premature, Mature, Old 状态
+        %     lifeCycleStatesForGen = [LifeCycleState.Premature, LifeCycleState.Mature, LifeCycleState.Old];
+        %     lifeCycleLabelsForGen = {categories(LifeCycleState.Premature:LifeCycleState.Old)}; % 对应的生命状态标签
+
+        %     % 计算按世代和生命状态分组的存活个体数量矩阵
+        %     % 行代表世代，列代表生命状态 (Premature, Mature, Old)
+        %     genLifeCycleCountsMatrix = zeros(length(uniqueGens), length(lifeCycleStatesForGen));
+        %     % 计算按世代分组的存活总数向量
+        %     generationTotalCounts = zeros(size(uniqueGens));
+
+        %     for i = 1:length(uniqueGens)
+        %         currentGen = uniqueGens(i);
+        %         genMask = alive_generations == currentGen;
+        %         genLifeStatuses = alive_life_statuses(genMask);
+        %         generationTotalCounts(i) = nnz(genMask); % Count alive individuals in this generation
+
+        %         for j = 1:length(lifeCycleStatesForGen)
+        %             currentStateEnum = lifeCycleStatesForGen(j);
+        %             genLifeCycleCountsMatrix(i, j) = nnz(genLifeStatuses == currentStateEnum);
+        %         end
         %     end
+
+        %     % 计算按世代分组的相对比例 (基于 GenerationTotalCounts)
+        %     genLifeCycleRatiosMatrix = genLifeCycleCountsMatrix ./ generationTotalCounts';
 
 
         %     % 组织到结构体中
         %     stats = struct(...
-        %         'AliveAges', aliveAges, ...
-        %         'AliveGenders', aliveGenders, ...
-        %         'AgeGroupCounts', ageGroupCounts, ...
-        %         'AgeGroupLabels', {ageGroupLabels} ...
+        %         'UniqueGenerations', uniqueGens, ...
+        %         'GenLifeCycleCountsMatrix', genLifeCycleCountsMatrix, ...
+        %         'GenerationTotalCounts', generationTotalCounts, ...
+        %         'GenLifeCycleRatiosMatrix', genLifeCycleRatiosMatrix, ...
+        %         'LifeCycleLabels', lifeCycleLabelsForGen ...
         %     );
         % end
 
-        function stats = get.GenerationStats(obj)
-            % 计算世代统计数据
+    %     function stats = get.AgeDistributionStats(obj)
+    %         % 计算年龄分布统计数据
 
-            % 过滤出存活个体
-            alive_mask = obj.life_statuses > LifeCycleState.Prebirth & obj.life_statuses < LifeCycleState.Dead;
-            alive_generations = obj.generations(alive_mask);
-            alive_life_statuses = obj.life_statuses(alive_mask);
+    %         % 获取存活个体的年龄和性别数组
+    %         alive_mask = obj.life_statuses > LifeCycleState.Prebirth & obj.life_statuses < LifeCycleState.Dead;
+    %         aliveAges = obj.ages(alive_mask);
+    %         aliveGenders = obj.genders(alive_mask);
 
-            uniqueGens = unique(alive_generations);
-            % 统计 Premature, Mature, Old 状态
-            lifeCycleStatesForGen = [LifeCycleState.Premature, LifeCycleState.Mature, LifeCycleState.Old];
-            lifeCycleLabelsForGen = {categories(LifeCycleState.Premature:LifeCycleState.Old)}; % 对应的生命状态标签
-
-            % 计算按世代和生命状态分组的存活个体数量矩阵
-            % 行代表世代，列代表生命状态 (Premature, Mature, Old)
-            genLifeCycleCountsMatrix = zeros(length(uniqueGens), length(lifeCycleStatesForGen));
-            % 计算按世代分组的存活总数向量
-            generationTotalCounts = zeros(size(uniqueGens));
-
-            for i = 1:length(uniqueGens)
-                currentGen = uniqueGens(i);
-                genMask = alive_generations == currentGen;
-                genLifeStatuses = alive_life_statuses(genMask);
-                generationTotalCounts(i) = nnz(genMask); % Count alive individuals in this generation
-
-                for j = 1:length(lifeCycleStatesForGen)
-                    currentStateEnum = lifeCycleStatesForGen(j);
-                    genLifeCycleCountsMatrix(i, j) = nnz(genLifeStatuses == currentStateEnum);
-                end
-            end
-
-            % 计算按世代分组的相对比例 (基于 GenerationTotalCounts)
-            genLifeCycleRatiosMatrix = genLifeCycleCountsMatrix ./ generationTotalCounts';
+    %         % 计算按年龄分组的个体数量 (仅存活个体)
+    %         % 示例年龄分组 (您可以根据需要调整)
+    %         age_group_edges = [0, 10, 20, 30, 40, 50, 60, 70, Inf];
+    %         ageGroupCounts = histcounts(aliveAges, age_group_edges);
+    %         ageGroupLabels = {'0-9', '10-19', '20-29', '30-39', '40-49', '50-59', '60-69', '70+'};
+    %          % 过滤掉计数为零的组的标签
+    %         if ~isempty(ageGroupCounts)
+    %              ageGroupLabels = ageGroupLabels(ageGroupCounts > 0);
+    %         else
+    %              ageGroupLabels = string.empty(1, 0);
+    %         end
 
 
-            % 组织到结构体中
-            stats = struct(...
-                'UniqueGenerations', uniqueGens, ...
-                'GenLifeCycleCountsMatrix', genLifeCycleCountsMatrix, ...
-                'GenerationTotalCounts', generationTotalCounts, ...
-                'GenLifeCycleRatiosMatrix', genLifeCycleRatiosMatrix, ...
-                'LifeCycleLabels', lifeCycleLabelsForGen ...
-            );
-        end
-
+    %         % 组织到结构体中
+    %         stats = struct(...
+    %             'AliveAges', aliveAges, ...
+    %             'AliveGenders', aliveGenders, ...
+    %             'AgeGroupCounts', ageGroupCounts, ...
+    %             'AgeGroupLabels', {ageGroupLabels} ...
+    %         );
+    %     end
 
     %     function metrics_vector = get.GlobalTimelineMetrics(obj)
     %         % 计算当前年份的关键种群指标向量

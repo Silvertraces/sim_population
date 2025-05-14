@@ -4,16 +4,16 @@ classdef PopulationParams < handle
     % 暂时继承自handle，后续将改为继承UIPropertyControlBaseClass
     
     properties
-        population (1,1) uint32 = 1e4 % 初始种群数量
+        population (1,1) int32 = 1e4 % 初始种群数量
         ratio_m (1,1) double {mustBeInRange(ratio_m, 0, 1)} = 0.5 % 初始雄性比例
-        age_expect (1,1) uint8 = 80 % 寿命期望值
+        age_expect (1,1) double = 80 % 寿命期望值
         ratio_age_dist_sigma (1,1) double {mustBePositive} = 0.05 % 寿命标准差比例
         ratio_range_repro (1,2) double {mustBeInRange(ratio_range_repro, 0, 1)} = [0.2, 0.6] % 繁殖年龄相对区间
         ratio_age_repro_mu (1,1) double {mustBeInRange(ratio_age_repro_mu, 0, 1)} = 0.4 % 繁殖概率分布均值比例
         ratio_age_repro_sigma (1,1) double {mustBePositive} = 0.1 % 繁殖概率分布标准差比例
         ratio_repro (1,1) double {mustBePositive} = 1 % 繁殖比率
         prob_m_repro (1,1) double {mustBeInRange(prob_m_repro, 0, 1)} = 0.5 % 生育雄性概率
-        birth_period (1,1) uint8 = 1 % 生育周期
+        birth_period (1,1) int32 = 1 % 生育周期
     end
     
     properties (Dependent)

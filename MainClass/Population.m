@@ -4,10 +4,10 @@ classdef Population < handle
     
     properties
         individuals Individual % 个体对象数组
-        current_year uint16 = 0 % 当前年份
-        all_next_id uint32 = 1     % 下一个个体全局ID
-        gen_next_ids uint32 = 1     % 每个世代的起始ID数组
-        currentYearDeathsCount uint16 = 0 % 当前年份死亡个体数
+        current_year int32 = 0 % 当前年份
+        all_next_id int32 = 1     % 下一个个体全局ID
+        gen_next_ids int32 = 1     % 每个世代的起始ID数组
+        currentYearDeathsCount int32 = 0 % 当前年份死亡个体数
     end
     
     properties (Access = private)
@@ -110,6 +110,7 @@ classdef Population < handle
             % 获取需要传递给个体 update 方法的参数
             death_probs = obj.params.death_probs;
             repro_range = obj.params.range_repro;
+            repro_probs = obj.params.repro_probs;
             prob_m_repro = obj.params.prob_m_repro;
             birth_period = obj.params.birth_period;
             
@@ -246,7 +247,7 @@ classdef Population < handle
             birth_years = obj.current_year + birth_period;
             
             % 创建新个体数组使用createArray
-            new_individuals = createArray(1, num_reproducing, "Individual");
+            new_individuals = createArray(1, num_reproducing_pairs, "Individual");
             
             % --- 批量设置新个体属性 ---
             % 设置全局ID
