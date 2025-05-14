@@ -23,7 +23,7 @@ classdef PrebirthState < LifeState
 
         function enumState = getEnumState(~)
             % 返回对应的枚举成员
-            enumState = EnumLifeCycleState.Prebirth;
+            enumState = LifeCycleState.Prebirth;
         end
     end
 end
