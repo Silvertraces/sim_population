@@ -26,16 +26,12 @@ classdef PopulationDashboard < handle
         AxGenRelRatio matlab.graphics.axis.Axes        % 世代相对比例堆叠条形图 axes 10
     end
 
-    properties (Access = private)
+    properties (Constant, Access = private)
         % 存储需要连年数据的图所需的历史窗口大小 (方案 3)
         % 例如：HistoryWindowSize = 100; % 只显示最近 100 年的数据
         HistoryWindowSize = 20; % 默认窗口20年
-    end
-
-    properties
-        % 静态绘图参数：使用 table 存放，rowname 为 axes 句柄名称，变量为参数类型 (Title, XLabel, YLabel)
-        % 初始值将在 axes 初始化完成后设置
-        PlotParameters table
+        LayoutRows = 4 % 布局行数
+        LayoutCols = 4 % 布局列数 % 修改为 4x4 布局
     end
 
     properties (Access = private)
@@ -43,19 +39,21 @@ classdef PopulationDashboard < handle
         % 此结构体将在 initializePlotFlags 方法中动态初始化
         PlotInitializedFlags struct;
 
+        % 静态绘图参数：使用 table 存放，rowname 为 axes 句柄名称，变量为参数类型 (Title, XLabel, YLabel)
+        % 初始值将在 axes 初始化完成后设置
+        PlotParameters table
+
         % 存储 PlotInitializedEvent 监听器的句柄
         PlotInitializedListener event.listener;
+    end
+
+    properties (Dependent)
+        PlotDict dictionary
     end
 
     % 定义事件，表示某个子图已首次绘制
     events
         PlotInitializedEvent
-    end
-
-
-    properties (Constant, Access = private)
-        LayoutRows = 4 % 布局行数
-        LayoutCols = 4 % 布局列数 % 修改为 4x4 布局
     end
 
     methods
@@ -66,16 +64,16 @@ classdef PopulationDashboard < handle
             %   initialHistory (可选) - 包含初始 PopulationState 对象的数组
 
             % 创建一个新的图窗
+            monitorpos = get(0, "MonitorPositions");
             obj.Figure = figure('Name', '种群模拟展板', ...
-            'NumberTitle', 'off', 'Units', 'normalized', ...
-            'Position', [0.1, 0.1, 0.8, 0.8]); % 设置图窗大小和位置
+            'NumberTitle', 'off', 'Position', monitorpos(2, :)); % 设置图窗大小和位置
 
             % 创建平铺图块布局
             obj.Layout = tiledlayout(obj.Figure, obj.LayoutRows, obj.LayoutCols);
 
             % 调整布局的间距和边距 (可选，根据需要调整)
-            obj.Layout.TileSpacing = 'tight'; % 'compact' 或 'tight', 'none'
-            obj.Layout.Padding = 'tight';     % 'compact' 或 'tight', 'none'
+            obj.Layout.TileSpacing = 'none'; % 'loose', 'compact' 或 'tight', 'none'
+            obj.Layout.Padding = 'compact';     % 'loose', 'compact' 或 'tight'
             % 设置图块索引顺序为列优先
             obj.Layout.TileIndexing = 'columnmajor';
 
@@ -121,8 +119,8 @@ classdef PopulationDashboard < handle
             obj.AxGenRelRatio = nexttile(obj.Layout, [2 1]);
             grid(obj.AxGenRelRatio, 'on');
 
-            % 可以选择添加一个总标题
-            title(obj.Layout, '种群模拟数据可视化展板');
+            % % 可以选择添加一个总标题
+            % title(obj.Layout, '种群模拟数据可视化展板');
 
             % 初始化 PlotInitializedFlags 结构体
             obj.initializePlotFlags();
@@ -148,7 +146,130 @@ classdef PopulationDashboard < handle
             % 调用 updateDashboard，它将使用 SimulationHistory 中的最新状态进行绘制
             % updateDashboard 会负责首次绘图和触发初始化事件
             obj.updateDashboard();
+        end
 
+        % --- Getter 方法用于计算依赖属性 ---
+        function dict = get.PlotDict(obj)
+            dict = dictionary();
+            axesNames = fieldnames(obj.PlotInitializedFlags)';
+            for axeName = axesNames
+                dict(axeName) = obj.(string(axeName));
+            end
+        end
+
+        % --- PlotInitializedFlags 结构体初始化方法 ---
+        function initializePlotFlags(obj)
+            % initializePlotFlags 动态初始化 PlotInitializedFlags 结构体
+            % 根据类中 axes 属性的名称创建字段并设置为 false
+
+            mc = meta.class.fromName(class(obj));
+            propList = mc.PropertyList;
+
+            % 过滤出 axes 属性
+            axesProps = propList(arrayfun(@(p) startsWith(p.Name, 'Ax') ...
+             && contains(p.Type.Name, 'Axes'), propList));
+            axesNames = {axesProps.Name};
+
+            % 初始化 PlotInitializedFlags 结构体
+            obj.PlotInitializedFlags = struct();
+            for i = 1:length(axesNames)
+                obj.PlotInitializedFlags.(axesNames{i}) = false;
+            end
+        end
+
+        % --- PlotInitializedEvent 回调函数 ---
+        function handlePlotInitialization(obj, ~, ~)
+            % handlePlotInitialization 在 PlotInitializedEvent 触发时调用
+            % 检查所有子图是否已首次绘制，如果是，则初始化静态参数 table
+
+            % 检查所有标志是否都为 true
+            allInitialized = all(structfun(@(x) x, obj.PlotInitializedFlags));
+
+            if allInitialized
+                % 所有子图都已首次绘制，初始化静态参数 table
+                obj.initializePlotParameters(); % 这会触发 PlotParameters 的 setter，进而调用 applyPlotParameters
+                % 可选：移除监听器，因为初始化只需要发生一次
+                delete(obj.PlotInitializedListener);
+                obj.PlotInitializedListener = []; % 清空句柄
+            end
+        end
+
+        % --- 静态绘图参数初始化方法 ---
+        function initializePlotParameters(obj)
+            % initializePlotParameters 初始化静态绘图参数 table
+            % 在所有子图首次绘制完成后触发
+
+            obj.PlotParameters = table(...
+                {'生命周期相对比例 (图1)'; '性别相对比例 (图2)'; 
+                '生命周期绝对数量 (图3)'; '存活个体性别数量 (图4)'; 
+                '种群总数量时间线 (图5)'; '当前年份年龄结构饼图 (图6)'; 
+                '当前年份年龄结构甜甜圈图'; '当前年份年龄分布 (图7)'; 
+                '当前年份年龄分布小提琴图 (图8)'; '世代分组数量 (图9)'; 
+                '世代相对比例 (图10)'}, ... % Title
+                {''; ''; ''; ''; '年份'; ''; ''; '年龄'; '年龄'; '世代'; '世代'}, ... % XLabel
+                {'比例'; '比例'; '数量'; '数量'; '总数量'; ''; ''; '密度/计数'; ''; '数量'; '比例'}, ... % YLabel
+                'VariableNames', {'Title', 'XLabel', 'YLabel'}, ...
+                'RowNames', fieldnames(obj.PlotInitializedFlags) ...
+            );
+            % PlotParameters 的 setter 方法会自动调用 applyPlotParameters
+        end
+
+        % --- Setter 方法用于实时更新参数 ---
+        function set.PlotParameters(obj, value)
+            % set.PlotParameters 设置 PlotParameters 属性并应用更改
+            % 输入:
+            %   value - 新的 PlotParameters table
+
+            obj.PlotParameters = value;
+
+            % 应用新的参数到 axes，只有在 axes 句柄已初始化后才执行
+            % PlotInitializedFlags每次变为True后证明axes已经创建，触发监听方法
+            % 监听方法判断为AllInitialized后才触发InitializePlotParameters
+            % 最后触发该setter，因而还检查axes已创建是多余的
+            % 直接调用applyPlotParameters
+            obj.applyPlotParameters();
+        end
+
+        % --- 静态绘图参数应用方法 ---
+        function applyPlotParameters(obj)
+            % applyPlotParameters 将静态绘图参数应用到 axes
+            % 在 PlotParameters 属性的 setter 中调用
+
+            % 只有在 axes 句柄已初始化后才应用参数
+            axesNames = fieldnames(obj.PlotInitializedFlags);
+            if isempty(axesNames) || ~isvalid(obj.(axesNames{1}))
+                 return; % Axes not yet created or invalid
+            end
+
+            % axesNames = obj.PlotParameters.RowNames;
+
+            for i = 1:length(axesNames)
+                axesName = axesNames{i};
+                % 获取对应的 axes 句柄
+                % 使用 try-catch 避免在 axes 句柄不存在时出错
+                try
+                    axesHandle = obj.(axesName);
+                    if isvalid(axesHandle)
+                        % 应用标题 (只设置基本标题，年份在 update 方法中添加)
+                        if ~isempty(obj.PlotParameters{axesName, 'Title'})
+                             title(axesHandle, obj.PlotParameters{axesName, 'Title'});
+                        end
+
+                        % 应用X轴标签
+                        if ~isempty(obj.PlotParameters{axesName, 'XLabel'})
+                             xlabel(axesHandle, obj.PlotParameters{axesName, 'XLabel'});
+                        end
+
+                        % 应用Y轴标签
+                        if ~isempty(obj.PlotParameters{axesName, 'YLabel'})
+                             ylabel(axesHandle, obj.PlotParameters{axesName, 'YLabel'});
+                        end
+                    end
+                catch
+                    % 如果 axes 句柄不存在或无效，忽略错误
+                    warning('无法应用参数到 axes: %s', axesName);
+                end
+            end
         end
 
         function addStateSnapshot(obj, state)
@@ -192,25 +313,30 @@ classdef PopulationDashboard < handle
                     cla(obj.AxGenGroupedStacked); cla(obj.AxGenRelRatio);
                     return;
                 end
-                if length(obj.SimulationHistory) < obj.HistoryWindowSize
-                    stateToDisplay = obj.SimulationHistory;
-                else
-                    stateToDisplay = obj.SimulationHistory(end - obj.HistoryWindowSize + 1:end);
-                end
-
             end
-
+            if ~exist("stateToDisplay", "var")
+                stateToDisplay = PopulationState.empty;
+            end
+            if length(obj.SimulationHistory) > length(stateToDisplay)
+                stateToDisplay = obj.SimulationHistory;
+            else
+                obj.SimulationHistory = stateToDisplay;
+            end
+            if length(stateToDisplay) > obj.HistoryWindowSize
+                stateToDisplay = stateToDisplay(...
+                    length(stateToDisplay) - obj.HistoryWindowSize + 1:end);
+            end
 
             % --- 调用各个子图的更新方法，传递 PopulationState 对象 ---
             % 这些方法内部会处理首次绘制和触发初始化事件
 
-            % 更新生命周期和性别比例/数量图
+            % 更新生命周期和性别比例/数量图和小提琴图
             obj.updateLifeCycleGenderPlots(stateToDisplay); % 传递 PopulationState 对象
 
             % 更新全局时间线图
             obj.updateGlobalTimelinePlot(obj.SimulationHistory); % 传递 PopulationState 对象
 
-            % 更新年龄结构饼图、甜甜圈图、直方图和小提琴图
+            % 更新年龄结构饼图、甜甜圈图、直方图
             obj.updateAgeDistributionPlots(stateToDisplay(end)); % 传递 PopulationState 对象
 
 
@@ -275,123 +401,6 @@ classdef PopulationDashboard < handle
                 years = [obj.SimulationHistory.year]; % 假设 PopulationState 有 year 属性
             end
         end
-
-        % --- 静态绘图参数初始化方法 ---
-        function initializePlotParameters(obj)
-            % initializePlotParameters 初始化静态绘图参数 table
-            % 在所有子图首次绘制完成后触发
-
-            obj.PlotParameters = table(...
-                {'生命周期相对比例 (图1)'; '性别相对比例 (图2)'; 
-                '生命周期绝对数量 (图3)'; '存活个体性别数量 (图4)'; 
-                '种群总数量时间线 (图5)'; '当前年份年龄结构饼图 (图6)'; 
-                '当前年份年龄结构甜甜圈图'; '当前年份年龄分布 (图7)'; 
-                '当前年份年龄分布小提琴图 (图8)'; '世代分组数量 (图9)'; 
-                '世代相对比例 (图10)'}, ... % Title
-                {''; ''; ''; ''; '年份'; ''; ''; '年龄'; '年龄'; '世代'; '世代'}, ... % XLabel
-                {'比例'; '比例'; '数量'; '数量'; '总数量'; ''; ''; '密度/计数'; ''; '数量'; '比例'}, ... % YLabel
-                'VariableNames', {'Title', 'XLabel', 'YLabel'}, ...
-                'RowNames', fieldnames(obj.PlotInitializedFlags) ...
-            );
-            % PlotParameters 的 setter 方法会自动调用 applyPlotParameters
-        end
-
-        % --- PlotInitializedFlags 结构体初始化方法 ---
-        function initializePlotFlags(obj)
-            % initializePlotFlags 动态初始化 PlotInitializedFlags 结构体
-            % 根据类中 axes 属性的名称创建字段并设置为 false
-
-            mc = meta.class.fromName(class(obj));
-            propList = mc.PropertyList;
-
-            % 过滤出 axes 属性
-            axesProps = propList(arrayfun(@(p) startsWith(p.Name, 'Ax') ...
-             && contains(p.Type.Name, 'Axes'), propList));
-            axesNames = {axesProps.Name};
-
-            % 初始化 PlotInitializedFlags 结构体
-            obj.PlotInitializedFlags = struct();
-            for i = 1:length(axesNames)
-                obj.PlotInitializedFlags.(axesNames{i}) = false;
-            end
-        end
-
-
-        % --- 静态绘图参数应用方法 ---
-        function applyPlotParameters(obj)
-            % applyPlotParameters 将静态绘图参数应用到 axes
-            % 在 PlotParameters 属性的 setter 中调用
-
-            % 只有在 axes 句柄已初始化后才应用参数
-            axesNames = fieldnames(obj.PlotInitializedFlags);
-            if isempty(axesNames) || ~isvalid(obj.(axesNames{1}))
-                 return; % Axes not yet created or invalid
-            end
-
-            % axesNames = obj.PlotParameters.RowNames;
-
-            for i = 1:length(axesNames)
-                axesName = axesNames{i};
-                % 获取对应的 axes 句柄
-                % 使用 try-catch 避免在 axes 句柄不存在时出错
-                try
-                    axesHandle = obj.(axesName);
-                    if isvalid(axesHandle)
-                        % 应用标题 (只设置基本标题，年份在 update 方法中添加)
-                        if ~isempty(obj.PlotParameters{axesName, 'Title'})
-                             title(axesHandle, obj.PlotParameters{axesName, 'Title'});
-                        end
-
-                        % 应用X轴标签
-                        if ~isempty(obj.PlotParameters{axesName, 'XLabel'})
-                             xlabel(axesHandle, obj.PlotParameters{axesName, 'XLabel'});
-                        end
-
-                        % 应用Y轴标签
-                        if ~isempty(obj.PlotParameters{axesName, 'YLabel'})
-                             ylabel(axesHandle, obj.PlotParameters{axesName, 'YLabel'});
-                        end
-                    end
-                catch
-                    % 如果 axes 句柄不存在或无效，忽略错误
-                    warning('无法应用参数到 axes: %s', axesName);
-                end
-            end
-        end
-
-        % --- Setter 方法用于实时更新参数 ---
-        function set.PlotParameters(obj, value)
-            % set.PlotParameters 设置 PlotParameters 属性并应用更改
-            % 输入:
-            %   value - 新的 PlotParameters table
-
-            obj.PlotParameters = value;
-
-            % 应用新的参数到 axes，只有在 axes 句柄已初始化后才执行
-            % PlotInitializedFlags每次变为True后证明axes已经创建，触发监听方法
-            % 监听方法判断为AllInitialized后才触发InitializePlotParameters
-            % 最后触发该setter，因而还检查axes已创建是多余的
-            % 直接调用applyPlotParameters
-            obj.applyPlotParameters();
-        end
-
-        % --- PlotInitializedEvent 回调函数 ---
-        function handlePlotInitialization(obj, ~, ~)
-            % handlePlotInitialization 在 PlotInitializedEvent 触发时调用
-            % 检查所有子图是否已首次绘制，如果是，则初始化静态参数 table
-
-            % 检查所有标志是否都为 true
-            allInitialized = all(structfun(@(x) x, obj.PlotInitializedFlags));
-
-            if allInitialized
-                % 所有子图都已首次绘制，初始化静态参数 table
-                obj.initializePlotParameters(); % 这会触发 PlotParameters 的 setter，进而调用 applyPlotParameters
-                % 可选：移除监听器，因为初始化只需要发生一次
-                delete(obj.PlotInitializedListener);
-                obj.PlotInitializedListener = []; % 清空句柄
-            end
-        end
-
 
         % --- 添加用于更新各个子图的具体方法 ---
         % 这些方法现在接收 PopulationState 对象作为输入，并在首次绘制时触发事件
@@ -647,14 +656,14 @@ classdef PopulationDashboard < handle
             % 要确保句柄不随绘图改变而增加，启用pivot函数的includeemptygroup选项
             axes(obj.AxGenGroupedStacked)
             if ~obj.PlotInitializedFlags.AxGenGroupedStacked
-                Hdl = bar(P.Generations, P{:, 2:end}, 'stacked', ...
+                Hdl1 = bar(P.Generations, P{:, 2:end}, 'stacked', ...
                     'Tag', 'BarGenGroupedStacked');
-                [Hdl.DisplayName] = deal(P.Properties.VariableNames{2:end});
+                [Hdl1.DisplayName] = deal(P.Properties.VariableNames{2:end});
                 obj.PlotInitializedFlags.AxGenGroupedStacked = true;
                 notify(obj, 'PlotInitializedEvent');
             else % 后续更新只更新数据
-                Hdl = findobj(gca, 'Tag', 'BarGenGroupedStacked');
-                updatePlotData(Hdl, P.Generations, P{:, 2:end})
+                Hdl1 = findobj(gca, 'Tag', 'BarGenGroupedStacked');
+                updatePlotData(Hdl1, P.Generations, P{:, 2:end})
                 % Hdl.XData = P.Generations;
                 % Hdl.YData = P{:, 2:end};
             end
@@ -671,16 +680,88 @@ classdef PopulationDashboard < handle
                 obj.PlotInitializedFlags.AxGenRelRatio = true;
                 notify(obj, 'PlotInitializedEvent');
              end
-                Hdl = bar([state.year], PivotJoint{:, 2:end}, 'stacked', ...
+                cla
+                Hdl2 = bar([state.year], PivotJoint{:, 2:end}, 'stacked', ...
                     'FaceColor', 'flat', 'Tag', 'BarGenRelRatio');
                 Genchar = cellstr(string(PivotJoint.Generations));
-                [Hdl.DisplayName] = deal(Genchar{:});
+                [Hdl2.DisplayName] = deal(Genchar{:});
                 % 转换为单元数组并批量赋值
-                [Hdl.CData] = deal(colorsCell{:});
+                [Hdl2.CData] = deal(colorsCell{:});
                 legend
          end
 
     end
+        
+    % 批处理模式相关方法
+    methods
+        function batchVisualize(obj, states, output_dir)
+            % batchVisualize 批量可视化并保存图像
+            % 输入:
+            %   states - PopulationState 对象数组，包含所有年份的种群状态
+            %   output_dir - 输出目录路径，用于保存图像
+            
+            % 验证输入
+            if ~isa(states, 'PopulationState')
+                error('states 必须是 PopulationState 对象数组');
+            end
+            
+            % 确保输出目录存在
+            if ~exist(output_dir, 'dir')
+                mkdir(output_dir);
+            end
+            
+            % 获取状态数量
+            num_states = length(states);
+            
+            % 创建进度条
+            progress_bar = waitbar(0, '开始批量可视化, 正在处理初值快照(第0年)...');
+            obj.saveFigureAsImage(output_dir, states(1).year);
+
+            % 遍历所有状态
+            for i = 2:num_states
+                % 更新进度条
+                waitbar((i-1)/(num_states-1), progress_bar, sprintf('正在处理第 %d/%d 年...', i-1, num_states-1));
+                
+                % 更新仪表板
+                obj.addStateSnapshot(states(i));
+                
+                % % 创建年份子目录
+                % year_dir = fullfile(output_dir, sprintf('Year_%04d', states(i).year));
+                % if ~exist(year_dir, 'dir')
+                %     mkdir(year_dir);
+                % end
+                
+                % 保存图像
+                obj.saveFigureAsImage(output_dir, states(i).year);
+            end
+            
+            % 关闭进度条
+            close(progress_bar);
+        end
+        
+        function saveFigureAsImage(obj, output_dir, year)
+            % saveFigureAsImage 将当前图窗保存为图像
+            % 输入:
+            %   output_dir - 输出目录路径
+            %   year - 当前年份，用于命名文件
+            
+            % 保存整个图窗
+            filename = fullfile(output_dir, sprintf('dashboard_year_%04d.png', year));
+            exportgraphics(obj.Figure, filename);
+            % saveas(obj.Figure, filename);
+            
+            % 保存各个子图
+            plotStruct = entries(obj.PlotDict, "struct");
+            for i = 1:length(plotStruct)
+                keyname = plotStruct(i).Key;
+                ax = plotStruct(i).Value;
+                filename = fullfile(output_dir, sprintf('%s_year_%04d.png', string(keyname), year));
+                exportgraphics(ax, filename); % vector only, 'BackgroundColor', 'none'); % Online only, 'Padding', 'figure');
+                % saveas(ax, filename);
+            end
+        end
+    end
+
 end
 
 function FieldArray = extractStructPropFields(InstArray, PropName, FieldName)
