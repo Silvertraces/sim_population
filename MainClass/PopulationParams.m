@@ -14,15 +14,20 @@ classdef PopulationParams < handle
         ratio_repro (1,1) double {mustBePositive} = 1 % 繁殖比率
         prob_m_repro (1,1) double {mustBeInRange(prob_m_repro, 0, 1)} = 0.5 % 生育雄性概率
         birth_period (1,1) int32 = 1 % 生育周期
+        structure_type (1,1) string {mustBeMember(structure_type, ...
+            {'pyramid', '金字塔型', 'inverted_pyramid', '倒金字塔型', 'coffin', '枣核型', ...
+            'column', '柱型', 'custom', '自定义', ''})} = '' % 种群结构类型
     end
     
     properties (Dependent)
         % 繁殖年龄范围
         range_repro        % 繁殖年龄范围 [最小年龄, 最大年龄]
-        
+        % 平均生育年龄
+        mean_repro_age     % 平均生育年龄（用于初始化分箱）
+        % 最大年龄（死亡概率区间上限）
+        max_age           % 最大年龄（死亡概率区间上限）
         % 繁殖概率数组
         repro_probs        % 每个年龄的繁殖概率
-        
         % 死亡概率数组
         death_probs        % 每个年龄的死亡概率累积分布
     end
@@ -91,6 +96,24 @@ classdef PopulationParams < handle
             range = round(obj.ratio_range_repro * obj.age_expect);
         end
         
+        function mean_age = get.mean_repro_age(obj)
+            % 获取平均生育年龄（用于初始化分箱）
+            % 输出:
+            %   mean_age - 平均生育年龄
+            range_repro = obj.range_repro;
+            repro_range_width = range_repro(2) - range_repro(1);
+            mean_age = range_repro(1) + repro_range_width * obj.ratio_age_repro_mu;
+            mean_age = round(mean_age);
+        end
+        
+        function val = get.max_age(obj)
+            % 获取最大年龄（死亡概率区间上限）
+            % 输出:
+            %   val - 最大年龄
+            age_dist_sigma = round(obj.age_expect * obj.ratio_age_dist_sigma);
+            val = ceil(obj.age_expect + 5 * age_dist_sigma);
+        end
+        
         function probs = get.repro_probs(obj)
             % 获取繁殖概率数组
             % 输出:
@@ -127,7 +150,7 @@ classdef PopulationParams < handle
             age_dist_sigma = round(obj.age_expect * obj.ratio_age_dist_sigma);
             
             % 计算死亡概率区间（从繁殖期结束后到期望寿命右侧五倍标准差）
-            max_age = ceil(obj.age_expect + 5 * age_dist_sigma);
+            max_age = obj.max_age;
             ages = (range_repro(2) + 1):max_age;
             
             % 计算每个年龄的pdf值（截断高斯分布）
