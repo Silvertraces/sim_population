@@ -83,18 +83,18 @@ classdef Individual < handle
             % --- 可选: 如果需要根据外部设置的 life_status 更新 currentState ---
             % 这部分取决于你是否打算从 update 方法外部直接设置 life_status。
             % 如果不需要，可以删除此部分。
-            % switch value
-            %     case LifeCycleState.Prebirth
-            %         obj.currentState = PrebirthState();
-            %     case LifeCycleState.Premature
-            %         obj.currentState = PrematureState();
-            %     case LifeCycleState.Mature
-            %         obj.currentState = MatureState();
-            %     case LifeCycleState.Old
-            %         obj.currentState = OldState();
-            %     case LifeCycleState.Dead
-            %         obj.currentState = DeadState();
-            % end
+            switch value
+                case LifeCycleState.Prebirth
+                    obj.currentState = PrebirthState();
+                case LifeCycleState.Premature
+                    obj.currentState = PrematureState();
+                case LifeCycleState.Mature
+                    obj.currentState = MatureState();
+                case LifeCycleState.Old
+                    obj.currentState = OldState();
+                case LifeCycleState.Dead
+                    obj.currentState = DeadState();
+            end
             % ----------------------------------------------------------------------------
         end
         
