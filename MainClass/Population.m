@@ -428,7 +428,7 @@ classdef Population < handle
             % 输出:
             %   state - PopulationState对象，包含当前种群的统计信息
             
-            state = PopulationState(obj.current_year, obj.currentYearDeathsCount, obj.individuals);
+            state = PopulationState(obj);
         end
         
         function states = batchSimulate(obj, max_years)

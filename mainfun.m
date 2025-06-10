@@ -3,7 +3,7 @@
 
 % 清除工作区和关闭所有图窗
 clear;
-close all;
+close all force;
 clc;
 % profile clear
 % profile -historysize 1e8 on
