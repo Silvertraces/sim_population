@@ -4,27 +4,30 @@ classdef PopulationState < handle
     % 包含用于可视化展板的依赖属性，统计数据按结构体组织
     
     properties
+        population Population
+    end
+
+    properties (Dependent)
         % 基本信息
         year int32                     % 统计年份
         currentYearDeathsCount int32   % 当年死亡个体数
         
-        % 个体属性数组（非未出生个体）
-        % 这些是原始数据，依赖属性将基于它们进行计算
+        
+        born_individuals Individual      % 个体属性数组（仅已出生个体）
+        
         all_ids         int32          % 全局ID数组
         gen_ids         int32          % 世代ID数组
         ages            int32            % 年龄数组，prebirth阶段可为负数
         generations     int32           % 代数数组
         birth_years     int32          % 出生年份数组
+        genders         categorical     % 性别数组
+        life_statuses   LifeCycleState  % 生命状态数组
+        % N*2 矩阵，每行表示一个个体的父母信息
         parent_all_ids  int32          % 亲代全局ID数组 [父亲ID, 母亲ID]
         parent_gen_ids  int32          % 亲代世代ID数组 [父亲ID, 母亲ID]
         parent_gens     int32           % 亲代世代数数组 [父亲世代, 母亲世代]
-        genders         categorical     % 性别数组
-        life_statuses   LifeCycleState  % 生命状态数组
-    end
 
-    properties (Dependent)
         % --- 依赖属性用于可视化统计，按结构体组织 ---
-
         % 生命周期和性别统计数据 (用于条形图)
         LifeCycleGenderStats struct
         
@@ -39,74 +42,12 @@ classdef PopulationState < handle
     end
     
     methods
-        function obj = PopulationState(year, deathcount, individuals)
+        function obj = PopulationState(population)
             % 构造函数
             % 输入:
-            %   year - 统计年份
-            %   deathcount - 当年死亡个体数
-            %   individuals - 个体对象数组（所有个体）
-            
-            % 设置年份
-            obj.year = year;
-            obj.currentYearDeathsCount = deathcount;
-            
-            % 排除未出生个体
-            life_statuses = [individuals.life_status];
-            born_mask = life_statuses > LifeCycleState.Prebirth;
-            born_individuals = individuals(born_mask);
-            
-            % 如果没有已出生个体，则返回空属性
-            if isempty(born_individuals)
-                % 初始化所有属性为空数组或默认值
-                obj.all_ids = int32.empty(1, 0);
-                obj.gen_ids = int32.empty(1, 0);
-                obj.ages = int8.empty(1, 0);
-                obj.generations = uint8.empty(1, 0);
-                obj.birth_years = uint16.empty(1, 0);
-                obj.parent_all_ids = int32.empty(0, 2); % 父母ID是 Nx2 矩阵
-                obj.parent_gen_ids = int32.empty(0, 2);
-                obj.parent_gens = uint8.empty(0, 2);
-                obj.genders = categorical.empty(1, 0);
-                obj.life_statuses = LifeCycleState.empty(1, 0); % 初始化为空的枚举数组
+            %   population: 种群对象
+            obj.population = population;
 
-                % % 生成并显示报告 (无已出生个体情况)
-                % stateReport = struct(...
-                %     '年份', obj.year, ...
-                %     '总出生数', 0, ...
-                %     '存活数', 0, ...
-                %     '当年出生数', 0, ...
-                %     '当年死亡数', obj.currentYearDeathsCount, ...
-                %     '净增长', -double(obj.currentYearDeathsCount), ... % 净增长 = 出生 - 死亡
-                %     '生命周期数量', zeros(1, length(categories(LifeCycleState.Premature:LifeCycleState.Dead))), ...
-                %     '生命周期标签', {categories(LifeCycleState.Premature:LifeCycleState.Dead)}, ...
-                %     '性别数量', zeros(1, length(categories(categorical.empty(1,0)))), ... % Assuming genders can be male/female
-                %     '性别标签', {categories(categorical(["male", "female"]))} ...
-                % );
-                % fprintf('--- 种群状态报告 (年份 %d) ---\n', obj.year);
-                % disp(stateReport);
-                % fprintf('-----------------------------------------\n');
-
-                return;
-            end
-            
-            % 提取个体属性到数组 (仅已出生个体)
-            obj.all_ids = [born_individuals.all_id];
-            obj.gen_ids = [born_individuals.gen_id];
-            obj.ages = [born_individuals.age];
-            obj.generations = [born_individuals.generation];
-            obj.birth_years = [born_individuals.birth_year];
-            obj.genders = [born_individuals.gender];
-            obj.life_statuses = [born_individuals.life_status];
-            
-            % 提取父母ID和世代数
-            % 由于这些是二维数组，需要特殊处理
-            % 使用 cell2mat 和 reshape 提取 Nx2 矩阵
-            sz_idvdl = size(born_individuals);
-            obj.parent_all_ids = cell2mat(reshape({born_individuals.parent_all_ids}, sz_idvdl));
-            obj.parent_gen_ids = cell2mat(reshape({born_individuals.parent_gen_ids}, sz_idvdl));
-            obj.parent_gens = cell2mat(reshape({born_individuals.parent_gens}, sz_idvdl));
-
-            % 生成并显示报告
             lifeCycleGenderStats = obj.LifeCycleGenderStats; % Access dependent property
             % for fieldName = fieldnames(lifeCycleGenderStats)'
             %     disp(fieldName)
@@ -187,6 +128,7 @@ classdef PopulationState < handle
             % 净增长 = 出生 - 死亡 (使用构造函数传入的当年死亡数)
             netGrowth = double(currentYearBirthsCount) - double(obj.currentYearDeathsCount);
 
+            lifeCycleLabels = obj.life_statuses.toCategoricalFromInstance();
 
             % 组织到结构体中
             stats = struct(...
@@ -199,134 +141,60 @@ classdef PopulationState < handle
                 'CurrentYearBirthsCount', currentYearBirthsCount, ...
                 'CurrentYearDeathsCount', obj.currentYearDeathsCount, ...
                 'NetGrowth', netGrowth, ...
-                'LifeCycleLabels', {cellstr(LifeCycleState.toCategorical([
-                    LifeCycleState.Premature 
-                    LifeCycleState.Mature
-                    LifeCycleState.Old]'))}, ... % 对应的生命状态标签
+                'LifeCycleLabels', lifeCycleLabels, ... % 对应的生命状态标签
                 'GenderLabels', {categories(obj.genders, "OutputType", "char")'} ... % 对应的性别标签
             );
         end
 
-        % function stats = get.GenerationStats(obj)
-        %     % 计算世代统计数据
-
-        %     % 过滤出存活个体
-        %     alive_mask = obj.life_statuses > LifeCycleState.Prebirth & obj.life_statuses < LifeCycleState.Dead;
-        %     alive_generations = obj.generations(alive_mask);
-        %     alive_life_statuses = obj.life_statuses(alive_mask);
-
-        %     uniqueGens = unique(alive_generations);
-        %     % 统计 Premature, Mature, Old 状态
-        %     lifeCycleStatesForGen = [LifeCycleState.Premature, LifeCycleState.Mature, LifeCycleState.Old];
-        %     lifeCycleLabelsForGen = {categories(LifeCycleState.Premature:LifeCycleState.Old)}; % 对应的生命状态标签
-
-        %     % 计算按世代和生命状态分组的存活个体数量矩阵
-        %     % 行代表世代，列代表生命状态 (Premature, Mature, Old)
-        %     genLifeCycleCountsMatrix = zeros(length(uniqueGens), length(lifeCycleStatesForGen));
-        %     % 计算按世代分组的存活总数向量
-        %     generationTotalCounts = zeros(size(uniqueGens));
-
-        %     for i = 1:length(uniqueGens)
-        %         currentGen = uniqueGens(i);
-        %         genMask = alive_generations == currentGen;
-        %         genLifeStatuses = alive_life_statuses(genMask);
-        %         generationTotalCounts(i) = nnz(genMask); % Count alive individuals in this generation
-
-        %         for j = 1:length(lifeCycleStatesForGen)
-        %             currentStateEnum = lifeCycleStatesForGen(j);
-        %             genLifeCycleCountsMatrix(i, j) = nnz(genLifeStatuses == currentStateEnum);
-        %         end
-        %     end
-
-        %     % 计算按世代分组的相对比例 (基于 GenerationTotalCounts)
-        %     genLifeCycleRatiosMatrix = genLifeCycleCountsMatrix ./ generationTotalCounts';
-
-
-        %     % 组织到结构体中
-        %     stats = struct(...
-        %         'UniqueGenerations', uniqueGens, ...
-        %         'GenLifeCycleCountsMatrix', genLifeCycleCountsMatrix, ...
-        %         'GenerationTotalCounts', generationTotalCounts, ...
-        %         'GenLifeCycleRatiosMatrix', genLifeCycleRatiosMatrix, ...
-        %         'LifeCycleLabels', lifeCycleLabelsForGen ...
-        %     );
-        % end
-
-    %     function stats = get.AgeDistributionStats(obj)
-    %         % 计算年龄分布统计数据
-
-    %         % 获取存活个体的年龄和性别数组
-    %         alive_mask = obj.life_statuses > LifeCycleState.Prebirth & obj.life_statuses < LifeCycleState.Dead;
-    %         aliveAges = obj.ages(alive_mask);
-    %         aliveGenders = obj.genders(alive_mask);
-
-    %         % 计算按年龄分组的个体数量 (仅存活个体)
-    %         % 示例年龄分组 (您可以根据需要调整)
-    %         age_group_edges = [0, 10, 20, 30, 40, 50, 60, 70, Inf];
-    %         ageGroupCounts = histcounts(aliveAges, age_group_edges);
-    %         ageGroupLabels = {'0-9', '10-19', '20-29', '30-39', '40-49', '50-59', '60-69', '70+'};
-    %          % 过滤掉计数为零的组的标签
-    %         if ~isempty(ageGroupCounts)
-    %              ageGroupLabels = ageGroupLabels(ageGroupCounts > 0);
-    %         else
-    %              ageGroupLabels = string.empty(1, 0);
-    %         end
-
-
-    %         % 组织到结构体中
-    %         stats = struct(...
-    %             'AliveAges', aliveAges, ...
-    %             'AliveGenders', aliveGenders, ...
-    %             'AgeGroupCounts', ageGroupCounts, ...
-    %             'AgeGroupLabels', {ageGroupLabels} ...
-    %         );
-    %     end
-
-    %     function metrics_vector = get.GlobalTimelineMetrics(obj)
-    %         % 计算当前年份的关键种群指标向量
-    %         % 顺序：总个体数，雄性数，雌性数，Premature数，Mature数，Old数，Dead数，
-    %         % 当前年份出生数，当前年份死亡数（无法准确计算，留空），出生-死亡净增长（无法准确计算，留空）
-
-    %         % 获取生命周期和性别计数 (从 LifeCycleGenderStats 结构体中获取)
-    %         lifeCycleGenderStats = obj.LifeCycleGenderStats;
-    %         lifeCycleCounts = lifeCycleGenderStats.LifeCycleCounts; % [Premature, Mature, Old]
-    %         genderCounts = lifeCycleGenderStats.GenderCounts;       % [Male, Female]
-
-    %         % 获取总个体数 (已出生)
-    %         total_individuals = lifeCycleGenderStats.TotalBorn;
-
-    %         % 获取当前年份出生数
-    %         current_year_births = nnz(obj.ages == 0 & obj.birth_years == obj.year);
-
-    %         % 获取总死亡数 (所有已出生并处于 Dead 状态的个体)
-    %         total_dead = lifeCycleGenderStats.TotalDead;
-
-    %         % --- 当前年份死亡人数和净增长 ---
-    %         % 无法从单个快照准确计算“当前年份死亡人数”。
-    %         % 需要比较前后两年的快照，或者在 Individual 类中存储死亡年份/年龄。
-    %         % 如果 Population 类在模拟过程中计算了当年死亡人数并传递给 PopulationState 构造函数，
-    %         % 则可以在 PopulationState 中存储该值并在此处使用。
-    %         % 暂时保留 NaN 占位符。
-    %         current_year_deaths = NaN; % 无法从单个快照计算
-
-    %         % 出生 - 死亡 净增长也无法准确计算
-    %         net_growth = NaN; % 无法从单个快照计算
-
-
-    %         % 构建指标向量
-    %         metrics_vector = [
-    %             double(total_individuals); % 转换为 double 以避免类型不匹配
-    %             double(genderCounts(1)); % Male
-    %             double(genderCounts(2)); % Female
-    %             double(lifeCycleCounts(1)); % Premature
-    %             double(lifeCycleCounts(2)); % Mature
-    %             double(lifeCycleCounts(3)); % Old
-    %             double(lifeCycleCounts(4)); % Dead (Total Dead)
-    %             double(current_year_births);
-    %             current_year_deaths; % Placeholder for current year deaths (NaN)
-    %             net_growth; % Placeholder for net growth (NaN)
-    %             ];
-    %     end
-    % end
+        % --- 其他依赖属性的 Get Methods ---
+        function year = get.year(obj)
+            year = obj.population.current_year;
+        end
+        function deathcount = get.currentYearDeathsCount(obj)
+            deathcount = obj.population.currentYearDeathsCount;
+        end
+        function born_individuals = get.born_individuals(obj)
+            % 提取已出生个体
+            life_status = [obj.population.individuals.life_statuses];
+            born_mask = life_status > LifeCycleState.Prebirth;
+            born_individuals = obj.population.individuals(born_mask);
+        end
+        
+        function all_ids = get.all_ids(obj)
+            all_ids = [obj.born_individuals.all_ids];
+        end
+        function gen_ids = get.gen_ids(obj)
+            gen_ids = [obj.born_individuals.gen_ids];
+        end
+        function ages = get.ages(obj)
+            ages = [obj.born_individuals.ages];
+        end
+        function generations = get.generations(obj)
+            generations = [obj.born_individuals.generations];
+        end
+        function birth_years = get.birth_years(obj)
+            birth_years = [obj.born_individuals.birth_years];
+        end
+        function genders = get.genders(obj)
+            genders = [obj.born_individuals.genders];
+        end
+        function life_statuses = get.life_statuses(obj)
+            life_statuses = [obj.born_individuals.life_statuses];
+        end
+        % 提取父母ID和世代数
+        % 由于这些是二维数组，需要特殊处理
+        % 使用 cell2mat 和 reshape 提取 Nx2 矩阵
+        function parent_all_ids = get.parent_all_ids(obj)
+            sz_idvdl = size(obj.born_individuals);
+            parent_all_ids = cell2mat(reshape({obj.born_individuals.parent_all_ids}, sz_idvdl));
+        end
+        function parent_gen_ids = get.parent_gen_ids(obj)
+            sz_idvdl = size(obj.born_individuals);
+            parent_gen_ids = cell2mat(reshape({obj.born_individuals.parent_gen_ids}, sz_idvdl));
+        end
+        function parent_gens = get.parent_gens(obj)
+            sz_idvdl = size(obj.born_individuals);
+            parent_gens = cell2mat(reshape({obj.born_individuals.parent_gens}, sz_idvdl));
+        end
     end
 end
